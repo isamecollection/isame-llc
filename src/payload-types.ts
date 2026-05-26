@@ -72,6 +72,20 @@ export interface Config {
     media: Media;
     categories: Category;
     users: User;
+    accounts: Account;
+    agreements: Agreement;
+    payments: Payment;
+    'scheduled-payments': ScheduledPayment;
+    events: Event;
+    notes: Note;
+    'call-attempts': CallAttempt;
+    'legal-cases': LegalCase;
+    clients: Client;
+    'debtor-references': DebtorReference;
+    emails: Email;
+    'cron-state': CronState;
+    templates: Template;
+    'account-documents': AccountDocument;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -89,6 +103,20 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    accounts: AccountsSelect<false> | AccountsSelect<true>;
+    agreements: AgreementsSelect<false> | AgreementsSelect<true>;
+    payments: PaymentsSelect<false> | PaymentsSelect<true>;
+    'scheduled-payments': ScheduledPaymentsSelect<false> | ScheduledPaymentsSelect<true>;
+    events: EventsSelect<false> | EventsSelect<true>;
+    notes: NotesSelect<false> | NotesSelect<true>;
+    'call-attempts': CallAttemptsSelect<false> | CallAttemptsSelect<true>;
+    'legal-cases': LegalCasesSelect<false> | LegalCasesSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
+    'debtor-references': DebtorReferencesSelect<false> | DebtorReferencesSelect<true>;
+    emails: EmailsSelect<false> | EmailsSelect<true>;
+    'cron-state': CronStateSelect<false> | CronStateSelect<true>;
+    templates: TemplatesSelect<false> | TemplatesSelect<true>;
+    'account-documents': AccountDocumentsSelect<false> | AccountDocumentsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -1582,7 +1610,10 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
-  roles?: ('admin' | 'editor')[] | null;
+  roles?:
+    | ('admin' | 'editor' | 'crm-manager' | 'supervisor' | 'court-agent' | 'collector' | 'client' | 'debtor')[]
+    | null;
+  supervisor?: (string | null) | User;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -1938,6 +1969,283 @@ export interface Form {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "accounts".
+ */
+export interface Account {
+  id: string;
+  accountNumber: string;
+  debtorName?: string | null;
+  ssn?: string | null;
+  originalBalance?: number | null;
+  currentBalance?: number | null;
+  status?: ('active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed') | null;
+  assignedCollector?: (string | null) | User;
+  client?: (string | null) | Client;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  employer?: string | null;
+  workPhone?: string | null;
+  homePhone?: string | null;
+  lastContactedAt?: string | null;
+  lastContactNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: string;
+  name: string;
+  email?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  contactPerson?: string | null;
+  /**
+   * 3‑4 letter code, e.g. ABC, used in account numbers (ABC#12345)
+   */
+  prefix: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreements".
+ */
+export interface Agreement {
+  id: string;
+  account: string | Account;
+  type?: ('settlement' | 'payment_plan' | 'promise_to_pay') | null;
+  totalAmount?: number | null;
+  status?: ('pending' | 'active' | 'breached' | 'completed' | 'cancelled') | null;
+  terms?: string | null;
+  signedDocument?: (string | null) | Media;
+  payments?:
+    | {
+        dueDate?: string | null;
+        amount?: number | null;
+        status?: ('pending' | 'paid' | 'missed') | null;
+        id?: string | null;
+      }[]
+    | null;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payments".
+ */
+export interface Payment {
+  id: string;
+  account: string | Account;
+  amount: number;
+  method?: ('credit_card' | 'ach' | 'check' | 'cash') | null;
+  status?: ('pending' | 'completed' | 'failed' | 'refunded') | null;
+  transactionId?: string | null;
+  date?: string | null;
+  collectedBy?: (string | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "scheduled-payments".
+ */
+export interface ScheduledPayment {
+  id: string;
+  account: string | Account;
+  amount: number;
+  dueDate: string;
+  status?: ('pending' | 'paid' | 'missed' | 'cancelled') | null;
+  agreement?: (string | null) | Agreement;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events".
+ */
+export interface Event {
+  id: string;
+  account?: (string | null) | Account;
+  type?: string | null;
+  data?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  createdAt: string;
+  updatedAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes".
+ */
+export interface Note {
+  id: string;
+  account: string | Account;
+  createdBy?: (string | null) | User;
+  content: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "call-attempts".
+ */
+export interface CallAttempt {
+  id: string;
+  account: string | Account;
+  contactType: 'debtor' | 'reference';
+  referenceName?: string | null;
+  phoneNumber?: string | null;
+  callDate: string;
+  duration?: number | null;
+  outcome?:
+    | (
+        | 'no_answer'
+        | 'voicemail'
+        | 'right_party_contact'
+        | 'wrong_number'
+        | 'disconnected'
+        | 'callback_requested'
+        | 'other'
+      )
+    | null;
+  notes?: string | null;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-cases".
+ */
+export interface LegalCase {
+  id: string;
+  account: string | Account;
+  status?:
+    | (
+        | 'new'
+        | 'under_review'
+        | 'filed'
+        | 'served'
+        | 'discovery'
+        | 'trial'
+        | 'settled'
+        | 'judgment'
+        | 'dismissed'
+        | 'appealed'
+        | 'closed'
+      )
+    | null;
+  attorney?: (string | null) | User;
+  caseNumber?: string | null;
+  court?: string | null;
+  caseType?: ('small_claims' | 'civil' | 'default_judgment' | 'garnishment' | 'other') | null;
+  filedDate?: string | null;
+  reason?: string | null;
+  documents?:
+    | {
+        file?: (string | null) | Media;
+        description?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  courtEvents?:
+    | {
+        eventDate: string;
+        eventType?: ('hearing' | 'trial' | 'deadline' | 'conference' | 'other') | null;
+        notes?: string | null;
+        outcome?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  judgment?: {
+    amount?: number | null;
+    date?: string | null;
+    interestRate?: number | null;
+  };
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "debtor-references".
+ */
+export interface DebtorReference {
+  id: string;
+  account: string | Account;
+  name: string;
+  phone?: string | null;
+  relationship?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "emails".
+ */
+export interface Email {
+  id: string;
+  account: string | Account;
+  direction?: ('sent' | 'received') | null;
+  sentBy?: (string | null) | User;
+  recipient: string;
+  subject: string;
+  body: string;
+  status?: ('sent' | 'failed') | null;
+  errorMessage?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cron-state".
+ */
+export interface CronState {
+  id: string;
+  key: string;
+  value: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "templates".
+ */
+export interface Template {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  type?: ('payment_reminder' | 'promise_confirmation' | 'settlement_offer' | 'general') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "account-documents".
+ */
+export interface AccountDocument {
+  id: string;
+  account: string | Account;
+  document: string | Media;
+  description?: string | null;
+  uploadedBy?: (string | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -2145,6 +2453,62 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: string | User;
+      } | null)
+    | ({
+        relationTo: 'accounts';
+        value: string | Account;
+      } | null)
+    | ({
+        relationTo: 'agreements';
+        value: string | Agreement;
+      } | null)
+    | ({
+        relationTo: 'payments';
+        value: string | Payment;
+      } | null)
+    | ({
+        relationTo: 'scheduled-payments';
+        value: string | ScheduledPayment;
+      } | null)
+    | ({
+        relationTo: 'events';
+        value: string | Event;
+      } | null)
+    | ({
+        relationTo: 'notes';
+        value: string | Note;
+      } | null)
+    | ({
+        relationTo: 'call-attempts';
+        value: string | CallAttempt;
+      } | null)
+    | ({
+        relationTo: 'legal-cases';
+        value: string | LegalCase;
+      } | null)
+    | ({
+        relationTo: 'clients';
+        value: string | Client;
+      } | null)
+    | ({
+        relationTo: 'debtor-references';
+        value: string | DebtorReference;
+      } | null)
+    | ({
+        relationTo: 'emails';
+        value: string | Email;
+      } | null)
+    | ({
+        relationTo: 'cron-state';
+        value: string | CronState;
+      } | null)
+    | ({
+        relationTo: 'templates';
+        value: string | Template;
+      } | null)
+    | ({
+        relationTo: 'account-documents';
+        value: string | AccountDocument;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3137,6 +3501,7 @@ export interface CategoriesSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   roles?: T;
+  supervisor?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -3153,6 +3518,236 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "accounts_select".
+ */
+export interface AccountsSelect<T extends boolean = true> {
+  accountNumber?: T;
+  debtorName?: T;
+  ssn?: T;
+  originalBalance?: T;
+  currentBalance?: T;
+  status?: T;
+  assignedCollector?: T;
+  client?: T;
+  phone?: T;
+  email?: T;
+  address?: T;
+  employer?: T;
+  workPhone?: T;
+  homePhone?: T;
+  lastContactedAt?: T;
+  lastContactNotes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreements_select".
+ */
+export interface AgreementsSelect<T extends boolean = true> {
+  account?: T;
+  type?: T;
+  totalAmount?: T;
+  status?: T;
+  terms?: T;
+  signedDocument?: T;
+  payments?:
+    | T
+    | {
+        dueDate?: T;
+        amount?: T;
+        status?: T;
+        id?: T;
+      };
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payments_select".
+ */
+export interface PaymentsSelect<T extends boolean = true> {
+  account?: T;
+  amount?: T;
+  method?: T;
+  status?: T;
+  transactionId?: T;
+  date?: T;
+  collectedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "scheduled-payments_select".
+ */
+export interface ScheduledPaymentsSelect<T extends boolean = true> {
+  account?: T;
+  amount?: T;
+  dueDate?: T;
+  status?: T;
+  agreement?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "events_select".
+ */
+export interface EventsSelect<T extends boolean = true> {
+  account?: T;
+  type?: T;
+  data?: T;
+  createdAt?: T;
+  updatedAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes_select".
+ */
+export interface NotesSelect<T extends boolean = true> {
+  account?: T;
+  createdBy?: T;
+  content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "call-attempts_select".
+ */
+export interface CallAttemptsSelect<T extends boolean = true> {
+  account?: T;
+  contactType?: T;
+  referenceName?: T;
+  phoneNumber?: T;
+  callDate?: T;
+  duration?: T;
+  outcome?: T;
+  notes?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "legal-cases_select".
+ */
+export interface LegalCasesSelect<T extends boolean = true> {
+  account?: T;
+  status?: T;
+  attorney?: T;
+  caseNumber?: T;
+  court?: T;
+  caseType?: T;
+  filedDate?: T;
+  reason?: T;
+  documents?:
+    | T
+    | {
+        file?: T;
+        description?: T;
+        id?: T;
+      };
+  courtEvents?:
+    | T
+    | {
+        eventDate?: T;
+        eventType?: T;
+        notes?: T;
+        outcome?: T;
+        id?: T;
+      };
+  judgment?:
+    | T
+    | {
+        amount?: T;
+        date?: T;
+        interestRate?: T;
+      };
+  notes?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients_select".
+ */
+export interface ClientsSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  address?: T;
+  phone?: T;
+  contactPerson?: T;
+  prefix?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "debtor-references_select".
+ */
+export interface DebtorReferencesSelect<T extends boolean = true> {
+  account?: T;
+  name?: T;
+  phone?: T;
+  relationship?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "emails_select".
+ */
+export interface EmailsSelect<T extends boolean = true> {
+  account?: T;
+  direction?: T;
+  sentBy?: T;
+  recipient?: T;
+  subject?: T;
+  body?: T;
+  status?: T;
+  errorMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cron-state_select".
+ */
+export interface CronStateSelect<T extends boolean = true> {
+  key?: T;
+  value?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "templates_select".
+ */
+export interface TemplatesSelect<T extends boolean = true> {
+  name?: T;
+  subject?: T;
+  body?: T;
+  type?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "account-documents_select".
+ */
+export interface AccountDocumentsSelect<T extends boolean = true> {
+  account?: T;
+  document?: T;
+  description?: T;
+  uploadedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

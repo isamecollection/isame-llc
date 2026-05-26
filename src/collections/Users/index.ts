@@ -1,34 +1,28 @@
 import type { CollectionConfig } from 'payload'
-
 import { authenticated } from '../../access/authenticated'
-import { isAdmin } from '../../access/isAdmin'
 
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    admin: authenticated,
+    admin: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
     create: authenticated,
     delete: authenticated,
     read: authenticated,
-    update: authenticated,
+    update: ({ req: { user } }) => {
+      if (user?.roles?.includes('admin')) return true
+      return { id: { equals: user?.id } }
+    },
   },
   admin: {
     defaultColumns: ['name', 'email', 'roles'],
     useAsTitle: 'name',
   },
   auth: {
-    tokenExpiration: 7200, // 2 hours – you can increase this if you want longer sessions
-    // ✅ Netlify‑safe cookie settings
-    cookies: {
-      sameSite: 'None', // works on all Netlify domains
-      secure: true, // HTTPS is always on Netlify
-    },
+    tokenExpiration: 7200,
+    cookies: { sameSite: 'Lax', secure: false },
   },
   fields: [
-    {
-      name: 'name',
-      type: 'text',
-    },
+    { name: 'name', type: 'text' },
     {
       name: 'roles',
       type: 'select',
@@ -36,12 +30,31 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Admin', value: 'admin' },
         { label: 'Editor', value: 'editor' },
+        { label: 'CRM Manager', value: 'crm-manager' },
+        { label: 'Supervisor', value: 'supervisor' },
+        { label: 'Court Agent', value: 'court-agent' },
+        { label: 'Collector', value: 'collector' },
+        { label: 'Client', value: 'client' },
+        { label: 'Debtor', value: 'debtor' },
       ],
       defaultValue: [],
       access: {
-        // Only admins can update roles – your user already has 'admin', so this is fine
-        update: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
-        create: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
+        // Allow admin AND crm-manager to set roles
+        update: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        create: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+      },
+    },
+    {
+      name: 'supervisor',
+      type: 'relationship',
+      relationTo: 'users',
+      access: {
+        update: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        create: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
       },
     },
   ],

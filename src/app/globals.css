@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Enable class‑based dark mode – required for the theme toggle */
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --color-primary: #1e293b;
+    --color-accent: #3b82f6;
+  }
+  .dark {
+    --color-primary: #0f172a;
+    --color-accent: #60a5fa;
+  }
+}

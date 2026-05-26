@@ -1,13 +1,18 @@
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import sharp from 'sharp'
 import path from 'path'
-import { buildConfig, PayloadRequest } from 'payload'
+import { buildConfig, CollectionConfig, PayloadRequest } from 'payload'
 import { fileURLToPath } from 'url'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { cloudinaryStorage } from 'payload-storage-cloudinary'
 import { v2 as cloudinary } from 'cloudinary'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
-
+import { Clients } from './collections/Clients'
+import { DebtorReferences } from './collections/DebtorReferences'
+import { Emails } from './collections/Emails'
+import { CronState } from './collections/CronState'
+import { Templates } from './collections/Templates'
+import { AccountDocuments } from './collections/AccountDocuments'
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -21,6 +26,17 @@ import { Media } from './collections/Media'
 import { Pages } from './collections/Pages'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
+
+// CRM collections
+import { Accounts } from './collections/Accounts'
+import { Agreements } from './collections/Agreements'
+import { Payments } from './collections/Payments'
+//import { ScheduledPayments } from './collections/ScheduledPayments'
+
+import { Events } from './collections/Events'
+import { Notes } from './collections/Notes'
+import { CallAttempts } from './collections/CallAttempts'
+import { LegalCases } from './collections/LegalCases' // ✨ NEW
 
 import { Footer } from './Footer/config'
 import { Header } from './Header/config'
@@ -37,8 +53,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 })
 
-console.log('📧 SMTP_HOST:', process.env.SMTP_HOST)
-
 const getStorageURL = ({ public_id, version, resource_type, format }: any) => {
   const isSVG = (typeof public_id === 'string' && public_id.endsWith('.svg')) || format === 'svg'
   return cloudinary.url(public_id, {
@@ -48,6 +62,23 @@ const getStorageURL = ({ public_id, version, resource_type, format }: any) => {
     transformation: isSVG ? [] : [{ quality: 'auto', fetch_format: 'auto' }],
   })
 }
+
+// Temporary inline copy (keep as-is until import issue is resolved)
+const ScheduledPayments = {
+  slug: 'scheduled-payments',
+  fields: [
+    { name: 'account', type: 'relationship', relationTo: 'accounts', required: true },
+    { name: 'amount', type: 'number', required: true },
+    { name: 'dueDate', type: 'date', required: true },
+    {
+      name: 'status',
+      type: 'select',
+      options: ['pending', 'paid', 'missed', 'cancelled'],
+      defaultValue: 'pending',
+    },
+    { name: 'agreement', type: 'relationship', relationTo: 'agreements' },
+  ],
+} as CollectionConfig
 
 export default buildConfig({
   serverURL: process.env.NEXT_PUBLIC_SERVER_URL || getServerSideURL(),
@@ -126,7 +157,28 @@ export default buildConfig({
     url: process.env.DATABASE_URL || '',
   }),
 
-  collections: [Pages, Posts, Media, Categories, Users], // 👈 Forms included here
+  collections: [
+    Pages,
+    Posts,
+    Media,
+    Categories,
+    Users,
+    Accounts,
+    Agreements,
+    Payments,
+    ScheduledPayments,
+    Events,
+    Notes,
+    CallAttempts,
+    LegalCases, // ✨ NEW
+    Clients,
+    DebtorReferences,
+    Emails,
+    CronState,
+    Templates,
+    AccountDocuments,
+  ],
+
   globals: [Header, Footer, Settings],
 
   plugins: [
