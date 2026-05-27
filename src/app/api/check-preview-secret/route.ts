@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 
 export async function GET() {
   const secret = process.env.PAYLOAD_PUBLIC_LIVE_PREVIEW_SECRET
