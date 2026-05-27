@@ -23,6 +23,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
 
   // Allow users with any of these internal roles
   const allowedRoles = ['collector', 'crm-manager', 'supervisor', 'admin']
+
   if (!user || !user.roles?.some((r) => allowedRoles.includes(r))) {
     redirect('/crm/login')
   }

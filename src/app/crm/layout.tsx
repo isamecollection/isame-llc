@@ -25,6 +25,9 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   const showManagement = activeRole === 'crm-manager' || activeRole === 'admin'
   const showSupervisor = activeRole === 'supervisor' || activeRole === 'admin'
 
+  // Reports link visible for managers, supervisors, and admins
+  const showReports = showManagement || showSupervisor || activeRole === 'admin'
+
   return (
     <RoleProvider initialRole={activeRole} roles={roles}>
       <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
@@ -44,6 +47,8 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
 
           {showSupervisor && <NavLink href="/crm/supervisor/users">👥 Manage Team</NavLink>}
 
+          {showReports && <NavLink href="/crm/reports">📊 Reports</NavLink>}
+
           <div className="flex-1" />
 
           <div className="border-t border-slate-700 pt-4 space-y-3 pb-16">
@@ -53,7 +58,11 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
           </div>
         </aside>
 
-        <MobileSidebar showManagement={showManagement} showSupervisor={showSupervisor} />
+        <MobileSidebar
+          showManagement={showManagement}
+          showSupervisor={showSupervisor}
+          showReports={showReports}
+        />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
