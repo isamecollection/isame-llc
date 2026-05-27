@@ -19,11 +19,7 @@
   color: #1e293b !important;   /* dark slate text */
 }
 
-/* Dark mode override */
-.dark #language {
-  background-color: #1e293b !important;
-  color: white !important;
-}
+
 
 /* Fix the dropdown popover (the options list) */
 [data-slot="select-content"] {
@@ -31,7 +27,3 @@
   color: #1e293b !important;
 }
 
-.dark [data-slot="select-content"] {
-  background-color: #1e293b !important;
-  color: white !important;
-}
