@@ -12,22 +12,29 @@ type Props = {
 }
 
 export const generatePreviewPath = ({ collection, slug }: Props) => {
-  // Allow empty strings, e.g. for the homepage
   if (slug === undefined || slug === null) {
     return null
   }
 
-  // Encode to support slugs with special characters
+  const previewSecret = process.env.PREVIEW_SECRET
+  if (!previewSecret) {
+    throw new Error('PREVIEW_SECRET environment variable is missing')
+  }
+
   const encodedSlug = encodeURIComponent(slug)
+
+  // Fix homepage path: avoid /home and use /
+  const path =
+    collection === 'pages' && slug === 'home'
+      ? '/'
+      : `${collectionPrefixMap[collection]}/${encodedSlug}`
 
   const encodedParams = new URLSearchParams({
     slug: encodedSlug,
     collection,
-    path: `${collectionPrefixMap[collection]}/${encodedSlug}`,
-    previewSecret: process.env.PREVIEW_SECRET || '',
+    path,
+    previewSecret,
   })
 
-  const url = `/next/preview?${encodedParams.toString()}`
-
-  return url
+  return `/next/preview?${encodedParams.toString()}`
 }
