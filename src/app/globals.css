@@ -13,13 +13,25 @@
     --color-accent: #60a5fa;
   }
 }
-/* Fix language dropdown transparency */
-[data-slot="select-trigger"] {
+/* Fix language selector trigger background and text */
+#language {
   background-color: white !important;
-  color: black !important;
+  color: #1e293b !important;   /* dark slate text */
 }
 
-.dark [data-slot="select-trigger"] {
+/* Dark mode override */
+.dark #language {
+  background-color: #1e293b !important;
+  color: white !important;
+}
+
+/* Fix the dropdown popover (the options list) */
+[data-slot="select-content"] {
+  background-color: white !important;
+  color: #1e293b !important;
+}
+
+.dark [data-slot="select-content"] {
   background-color: #1e293b !important;
   color: white !important;
 }
