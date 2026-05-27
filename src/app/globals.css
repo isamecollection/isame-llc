@@ -13,3 +13,13 @@
     --color-accent: #60a5fa;
   }
 }
+/* Fix language dropdown transparency */
+[data-slot="select-trigger"] {
+  background-color: white !important;
+  color: black !important;
+}
+
+.dark [data-slot="select-trigger"] {
+  background-color: #1e293b !important;
+  color: white !important;
+}
