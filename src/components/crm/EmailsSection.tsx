@@ -3,6 +3,41 @@ import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/components/Toast'
 import { TemplateSelector } from '@/components/crm/TemplateSelector'
 
+// Toggleable email body component
+function EmailBody({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const maxLength = 200
+  const isLong = text.length > maxLength
+
+  return (
+    <div className="mt-1 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+      {isLong && !expanded ? (
+        <>
+          {text.slice(0, maxLength)}…
+          <button
+            onClick={() => setExpanded(true)}
+            className="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Show more
+          </button>
+        </>
+      ) : (
+        <>
+          {text}
+          {isLong && (
+            <button
+              onClick={() => setExpanded(false)}
+              className="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Show less
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 export function EmailsSection({ accountId }: { accountId: string }) {
   const [emails, setEmails] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,7 +92,7 @@ export function EmailsSection({ accountId }: { accountId: string }) {
   }
 
   // Send email
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!to || !subject || !body) return showToast('All fields are required', 'error')
     setSending(true)
@@ -80,7 +115,7 @@ export function EmailsSection({ accountId }: { accountId: string }) {
   }
 
   // Log received email
-  const handleLogReceived = async (e: React.FormEvent) => {
+  const handleLogReceived = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!from || !rSubject || !rBody) return showToast('All fields are required', 'error')
     setLogging(true)
@@ -241,6 +276,7 @@ export function EmailsSection({ accountId }: { accountId: string }) {
                           : `From: ${email.recipient}`}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{email.subject}</p>
+                      {email.body && <EmailBody text={email.body} />}
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {new Date(email.createdAt).toLocaleString()} by{' '}
                         {(email.sentBy as any)?.name || 'System'}

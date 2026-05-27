@@ -13,6 +13,7 @@ import { Emails } from './collections/Emails'
 import { CronState } from './collections/CronState'
 import { Templates } from './collections/Templates'
 import { AccountDocuments } from './collections/AccountDocuments'
+import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -53,13 +54,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET!,
 })
 
-const getStorageURL = ({ public_id, version, resource_type, format }: any) => {
-  const isSVG = (typeof public_id === 'string' && public_id.endsWith('.svg')) || format === 'svg'
+const getStorageURL = ({ public_id, resource_type, format }: any) => {
+  // Only apply quality / format transformations to images
+  const isImage = resource_type === 'image' && format !== 'svg'
   return cloudinary.url(public_id, {
     secure: true,
-    resource_type: 'image',
-    version,
-    transformation: isSVG ? [] : [{ quality: 'auto', fetch_format: 'auto' }],
+    resource_type: resource_type || 'image', // use the original resource type (e.g., 'raw' for PDFs)
+    transformation: isImage ? [{ quality: 'auto', fetch_format: 'auto' }] : [],
   })
 }
 
@@ -97,14 +98,15 @@ export default buildConfig({
   },
 
   email: nodemailerAdapter({
-    defaultFromAddress: 'info@isame.bz',
+    defaultFromAddress: 'collection@isame.co',
     defaultFromName: 'Isame Collection',
     transportOptions: {
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
+      host: process.env.MXROUTE_SERVER, // fusion.mxrouting.net
+      port: 465,
+      secure: true,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.MXROUTE_USERNAME, // collection@isame.co
+        pass: process.env.MXROUTE_PASSWORD,
       },
     },
   }),

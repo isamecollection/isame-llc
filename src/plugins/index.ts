@@ -9,6 +9,7 @@ import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 import { searchFields } from '@/search/fieldOverrides'
 import { beforeSyncWithSearch } from '@/search/beforeSync'
+import { sendFormEmail } from '@/lib/formEmail' // 👈 new import
 
 import { Page, Post } from '@/payload-types'
 import { getServerSideURL } from '@/utilities/getURL'
@@ -57,6 +58,7 @@ export const plugins: Plugin[] = [
     fields: {
       payment: false,
     },
+
     formOverrides: {
       fields: ({ defaultFields }) => {
         return defaultFields.map((field) => {
@@ -79,6 +81,39 @@ export const plugins: Plugin[] = [
       },
     },
 
+    // 👇 Override the built‑in form‑submissions collection to add our email hook
+    // @ts-ignore – hooks are supported at runtime; type definitions are incomplete
+    formSubmissionOverrides: {
+      hooks: {
+        afterChange: [
+          async ({ doc }) => {
+            // The submitted field values live in the `submissionData` array.
+            const fieldsArray = Array.isArray(doc.submissionData) ? doc.submissionData : []
+
+            // Build an HTML list of field names and values
+            const rows = fieldsArray
+              .map((item: any) => {
+                const label = item.field?.label || item.field || 'Unknown field'
+                const value = item.value ?? ''
+                return `<p><strong>${label}:</strong> ${value}</p>`
+              })
+              .join('')
+
+            try {
+              await sendFormEmail({
+                to: 'info@isame.co',
+                subject: 'New Website Lead',
+                html: `<h2>New Contact Form Submission</h2>${rows}`,
+              })
+            } catch (err) {
+              console.error('Failed to send lead email', err)
+            }
+
+            return doc
+          },
+        ],
+      },
+    },
     // 👇 Enable localization on the Forms collection (use @ts-ignore to bypass type mismatch)
     // @ts-ignore
     formCollection: {
