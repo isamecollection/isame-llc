@@ -1,11 +1,7 @@
 ﻿import { getPayload } from '@/payload'
 import { notFound } from 'next/navigation'
 
-export default async function DebtorHistoryPage({
-  params,
-}: {
-  params: Promise<{ ssn: string }>
-}) {
+export default async function DebtorHistoryPage({ params }: { params: Promise<{ ssn: string }> }) {
   const { ssn } = await params
   const payload = await getPayload()
 
@@ -13,58 +9,56 @@ export default async function DebtorHistoryPage({
     collection: 'accounts',
     where: { ssn: { equals: ssn } },
     sort: '-createdAt',
-    depth: 1,
+    depth: 1, // populate client
   })
 
   if (accounts.totalDocs === 0) notFound()
 
   return (
     <div>
-      <h1>Debtor History – SSN: {ssn}</h1>
-      <p>Total accounts found: {accounts.totalDocs}</p>
+      <h1 className="text-2xl font-bold mb-4">Debtor History – SSN: {ssn}</h1>
+      <p className="mb-4 text-gray-600 dark:text-gray-400">
+        Total accounts found: {accounts.totalDocs}
+      </p>
 
-      <div
-        style={{
-          maxHeight: '500px',
-          overflowY: 'auto',
-          border: '1px solid #ccc',
-          borderRadius: 8,
-          marginTop: '1rem',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5' }}>
-              <th style={headerStyle}>Debtor Name</th>
-              <th style={headerStyle}>Client</th>
-              <th style={headerStyle}>Account #</th>
-              <th style={headerStyle}>Balance</th>
-              <th style={headerStyle}>Status</th>
-              <th style={headerStyle}>Assigned Collector</th>
-              <th style={headerStyle}>Added</th>
-              <th style={headerStyle}></th>
+      <div className="max-h-125 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Debtor Name</th>
+              <th className="px-4 py-3 font-semibold">Client</th>
+              <th className="px-4 py-3 font-semibold">Account #</th>
+              <th className="px-4 py-3 font-semibold">Balance</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Assigned Collector</th>
+              <th className="px-4 py-3 font-semibold">Added</th>
+              <th className="px-4 py-3 font-semibold"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {accounts.docs.map((account: any) => (
-              <tr key={account.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={cellStyle}>{account.debtorName || 'Unknown'}</td>
-                <td style={cellStyle}>{(account.client as any)?.name || '—'}</td>
-                <td style={cellStyle}>{account.accountNumber}</td>
-                <td style={cellStyle}></td>
-                <td style={cellStyle}>{account.status}</td>
-                <td style={cellStyle}>
+              <tr
+                key={account.id}
+                className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <td className="px-4 py-3">{account.debtorName || 'Unknown'}</td>
+                <td className="px-4 py-3">{(account.client as any)?.name || '—'}</td>
+                <td className="px-4 py-3">{account.accountNumber}</td>
+                <td className="px-4 py-3">${account.currentBalance?.toLocaleString()}</td>
+                <td className="px-4 py-3">{account.status}</td>
+                <td className="px-4 py-3">
                   {account.assignedCollector
                     ? (account.assignedCollector as any)?.name || account.assignedCollector
                     : '—'}
                 </td>
-                <td style={cellStyle}>
-                  {account.createdAt
-                    ? new Date(account.createdAt).toLocaleDateString()
-                    : '—'}
+                <td className="px-4 py-3">
+                  {account.createdAt ? new Date(account.createdAt).toLocaleDateString() : '—'}
                 </td>
-                <td style={cellStyle}>
-                  <a href={/crm/accounts/} style={{ color: 'blue' }}>
+                <td className="px-4 py-3">
+                  <a
+                    href={`/crm/accounts/${account.id}`}
+                    className="text-blue-600 dark:text-blue-400 hover:underline"
+                  >
                     View
                   </a>
                 </td>
@@ -76,11 +70,3 @@ export default async function DebtorHistoryPage({
     </div>
   )
 }
-
-const headerStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  textAlign: 'left',
-  fontWeight: 'bold',
-  whiteSpace: 'nowrap',
-}
-const cellStyle: React.CSSProperties = { padding: '8px 12px' }
