@@ -1989,6 +1989,10 @@ export interface Account {
   homePhone?: string | null;
   lastContactedAt?: string | null;
   lastContactNotes?: string | null;
+  /**
+   * Archive this account instead of deleting it.
+   */
+  archived?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2007,6 +2011,10 @@ export interface Client {
    * 3‑4 letter code, e.g. ABC, used in account numbers (ABC#12345)
    */
   prefix: string;
+  /**
+   * Archive this client instead of deleting it.
+   */
+  archived?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -3540,6 +3548,7 @@ export interface AccountsSelect<T extends boolean = true> {
   homePhone?: T;
   lastContactedAt?: T;
   lastContactNotes?: T;
+  archived?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -3684,6 +3693,7 @@ export interface ClientsSelect<T extends boolean = true> {
   phone?: T;
   contactPerson?: T;
   prefix?: T;
+  archived?: T;
   updatedAt?: T;
   createdAt?: T;
 }

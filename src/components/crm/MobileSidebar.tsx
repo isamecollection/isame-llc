@@ -1,15 +1,22 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { RoleSwitcher } from '@/components/crm/RoleSwitcher'
 
 export function MobileSidebar({
   showManagement,
   showSupervisor,
   showReports,
+  roles, // new
+  activeRole, // new
+  userName,
 }: {
   showManagement: boolean
   showSupervisor: boolean
   showReports: boolean
+  roles: string[]
+  activeRole: string | null
+  userName: string
 }) {
   const [open, setOpen] = useState(false)
 
@@ -75,6 +82,10 @@ export function MobileSidebar({
               📊 Reports
             </Link>
           )}
+          <div className="mt-auto border-t border-slate-700 pt-4 space-y-3">
+            <RoleSwitcher roles={roles} activeRole={activeRole} />
+            <p className="text-sm text-slate-300">{userName}</p>
+          </div>
         </div>
       )}
     </>

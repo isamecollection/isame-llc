@@ -6,12 +6,14 @@ export const Users: CollectionConfig = {
   access: {
     admin: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
     create: authenticated,
-    delete: authenticated,
     read: authenticated,
     update: ({ req: { user } }) => {
       if (user?.roles?.includes('admin')) return true
       return { id: { equals: user?.id } }
     },
+    // ✅ Only admins and CRM managers can delete users
+    delete: ({ req: { user } }) =>
+      user?.roles?.some((r) => ['admin', 'crm-manager'].includes(r)) ?? false,
   },
   admin: {
     defaultColumns: ['name', 'email', 'roles'],
@@ -19,7 +21,7 @@ export const Users: CollectionConfig = {
   },
   auth: {
     tokenExpiration: 7200,
-    cookies: { sameSite: 'Lax', secure: false },
+    cookies: { sameSite: 'Lax', secure: true },
   },
   fields: [
     { name: 'name', type: 'text' },
@@ -39,7 +41,6 @@ export const Users: CollectionConfig = {
       ],
       defaultValue: [],
       access: {
-        // Allow admin AND crm-manager to set roles
         update: ({ req: { user } }) =>
           (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
         create: ({ req: { user } }) =>

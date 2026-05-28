@@ -62,6 +62,9 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
           showManagement={showManagement}
           showSupervisor={showSupervisor}
           showReports={showReports}
+          roles={roles}
+          activeRole={activeRole}
+          userName={user.name || 'Unknown'}
         />
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>

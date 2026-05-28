@@ -67,6 +67,7 @@ const getStorageURL = ({ public_id, resource_type, format }: any) => {
 // Temporary inline copy (keep as-is until import issue is resolved)
 const ScheduledPayments = {
   slug: 'scheduled-payments',
+  admin: { hidden: true },
   fields: [
     { name: 'account', type: 'relationship', relationTo: 'accounts', required: true },
     { name: 'amount', type: 'number', required: true },

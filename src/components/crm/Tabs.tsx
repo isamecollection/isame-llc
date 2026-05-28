@@ -11,7 +11,7 @@ export function Tabs({ tabs }: { tabs: TabItem[] }) {
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
+      <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-gray-700 mb-4">
         {tabs.map((tab, index) => (
           <button
             key={tab.label}

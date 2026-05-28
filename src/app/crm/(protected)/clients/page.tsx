@@ -1,9 +1,21 @@
-import { getPayload } from '@/payload'
+﻿import { getPayload } from '@/payload'
+import { headers } from 'next/headers'
 import { CreateClientForm } from '@/components/crm/CreateClientForm'
+import { ArchiveClientButton } from '@/components/crm/ArchiveClientButton'
 
 export default async function ClientsPage() {
   const payload = await getPayload()
-  const clients = await payload.find({ collection: 'clients', sort: 'name' })
+  const { user } = await payload.auth({ headers: await headers() })
+
+  // Only show non‑archived clients
+  const clients = await payload.find({
+    collection: 'clients',
+    where: { archived: { equals: false } },
+    sort: 'name',
+  })
+
+  // Only admins and CRM managers can archive/un‑archive
+  const canManage = user?.roles?.some((r: string) => ['admin', 'crm-manager'].includes(r)) ?? false
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -18,6 +30,11 @@ export default async function ClientsPage() {
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
           >
             <strong>{client.name}</strong> ({client.prefix}) – {client.contactPerson || '—'}
+            {canManage && (
+              <div className="mt-2">
+                <ArchiveClientButton clientId={client.id} archived={client.archived} />
+              </div>
+            )}
           </li>
         ))}
       </ul>

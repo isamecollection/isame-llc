@@ -6,6 +6,7 @@ export default async function AccountsPage() {
   const payload = await getPayload()
   const headersList = await headers()
   const cookieStore = await cookies()
+  const filter: any = { status: { equals: 'active' }, archived: { equals: false } }
   const { user } = await payload.auth({ headers: headersList })
 
   if (!user) return <p className="text-gray-500">Unauthorized</p>

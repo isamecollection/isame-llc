@@ -15,6 +15,7 @@ import { EditAccountForm } from '@/components/crm/EditAccountForm'
 import { DeleteAccountButton } from '@/components/crm/DeleteAccountButton'
 import { EmailsSection } from '@/components/crm/EmailsSection'
 import { AccountDocumentsSection } from '@/components/crm/AccountDocumentsSection'
+import { ArchiveAccountButton } from '@/components/crm/ArchiveAccountButton'
 import { headers, cookies } from 'next/headers'
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -105,6 +106,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 <hr className="border-gray-200 dark:border-gray-700" />
                 <div>
                   <h4 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h4>
+                  <ArchiveAccountButton
+                    accountId={account.id}
+                    archived={account.archived ?? false}
+                  />
                   <DeleteAccountButton accountId={account.id} />
                 </div>
               </div>
