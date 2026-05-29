@@ -32,6 +32,10 @@ export function FilterableAccountsTable({
   const [bulkCollector, setBulkCollector] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
 
+  // Bulk archive & delete state
+  const [bulkArchiving, setBulkArchiving] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
   const [clients, setClients] = useState<any[]>([])
   const { showToast } = useToast()
 
@@ -118,7 +122,46 @@ export function FilterableAccountsTable({
     setSelectedIds([])
     setBulkCollector('')
     setBulkAssigning(false)
-    fetchAccounts(page) // refresh table
+    fetchAccounts(page)
+  }
+
+  const handleBulkArchive = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`Archive ${selectedIds.length} account(s)?`)) return
+    setBulkArchiving(true)
+    let success = 0
+    let failed = 0
+    for (const accountId of selectedIds) {
+      const res = await fetch(`/api/accounts/${accountId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      })
+      if (res.ok) success++
+      else failed++
+    }
+    showToast(`Archived ${success} account(s).${failed > 0 ? ` ${failed} failed.` : ''}`)
+    setSelectedIds([])
+    setBulkArchiving(false)
+    fetchAccounts(page)
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`Permanently delete ${selectedIds.length} account(s)? This cannot be undone.`))
+      return
+    setBulkDeleting(true)
+    let success = 0
+    let failed = 0
+    for (const accountId of selectedIds) {
+      const res = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' })
+      if (res.ok) success++
+      else failed++
+    }
+    showToast(`Deleted ${success} account(s).${failed > 0 ? ` ${failed} failed.` : ''}`)
+    setSelectedIds([])
+    setBulkDeleting(false)
+    fetchAccounts(page)
   }
 
   const getPageNumbers = () => {
@@ -209,9 +252,9 @@ export function FilterableAccountsTable({
         </button>
       </form>
 
-      {/* Bulk assign toolbar */}
+      {/* Bulk actions toolbar */}
       {showAssignment && selectedIds.length > 0 && (
-        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg flex items-center gap-3">
+        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg flex flex-wrap items-center gap-3">
           <span className="text-sm text-blue-800 dark:text-blue-200">
             {selectedIds.length} account(s) selected
           </span>
@@ -233,6 +276,20 @@ export function FilterableAccountsTable({
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
           >
             {bulkAssigning ? 'Assigning…' : 'Assign'}
+          </button>
+          <button
+            onClick={handleBulkArchive}
+            disabled={bulkArchiving || bulkDeleting}
+            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 text-sm"
+          >
+            {bulkArchiving ? 'Archiving…' : 'Archive Selected'}
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting || bulkArchiving}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+          >
+            {bulkDeleting ? 'Deleting…' : 'Delete Selected'}
           </button>
         </div>
       )}

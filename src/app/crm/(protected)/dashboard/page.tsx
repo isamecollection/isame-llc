@@ -3,6 +3,7 @@ import CollectorDashboard from '@/components/crm/dashboards/CollectorDashboard'
 import ManagerDashboard from '@/components/crm/dashboards/ManagerDashboard'
 import AdminDashboard from '@/components/crm/dashboards/AdminDashboard'
 import SupervisorDashboard from '@/components/crm/dashboards/SupervisorDashboard'
+import CourtAgentDashboard from '@/components/crm/dashboards/CourtAgentDashboard'
 
 export default async function DashboardPage() {
   const cookieStore = await cookies()
@@ -12,6 +13,7 @@ export default async function DashboardPage() {
   if (activeRole === 'crm-manager') return <ManagerDashboard />
   if (activeRole === 'admin') return <AdminDashboard />
   if (activeRole === 'supervisor') return <SupervisorDashboard />
+  if (activeRole === 'court-agent') return <CourtAgentDashboard />
   // Fallback for any other role (editor, etc.)
   return (
     <div>

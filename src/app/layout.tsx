@@ -18,21 +18,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         }
         suppressHydrationWarning
       >
-        {/* Plain script to avoid the "Script inside React component" warning */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var theme = localStorage.getItem('theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                  }
-                } catch(e) {}
-              })();
-            `,
-          }}
-        />
         <ToastProvider>
           <ThemeProvider>{children}</ThemeProvider>
         </ToastProvider>
