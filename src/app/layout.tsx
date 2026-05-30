@@ -12,7 +12,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={
           isCrm ? 'min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100' : ''
