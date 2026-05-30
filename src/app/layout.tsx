@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { headers } from 'next/headers'
 import { ToastProvider } from '@/components/Toast'
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
@@ -18,6 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         }
         suppressHydrationWarning
       >
+        <ServiceWorkerRegistration />
         <ToastProvider>
           <ThemeProvider>{children}</ThemeProvider>
         </ToastProvider>

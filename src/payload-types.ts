@@ -86,6 +86,7 @@ export interface Config {
     'cron-state': CronState;
     templates: Template;
     'account-documents': AccountDocument;
+    'service-attempts': ServiceAttempt;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -117,6 +118,7 @@ export interface Config {
     'cron-state': CronStateSelect<false> | CronStateSelect<true>;
     templates: TemplatesSelect<false> | TemplatesSelect<true>;
     'account-documents': AccountDocumentsSelect<false> | AccountDocumentsSelect<true>;
+    'service-attempts': ServiceAttemptsSelect<false> | ServiceAttemptsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -1611,9 +1613,24 @@ export interface User {
   id: string;
   name?: string | null;
   roles?:
-    | ('admin' | 'editor' | 'crm-manager' | 'supervisor' | 'court-agent' | 'collector' | 'client' | 'debtor')[]
+    | (
+        | 'admin'
+        | 'editor'
+        | 'crm-manager'
+        | 'supervisor'
+        | 'court-agent'
+        | 'collector'
+        | 'client'
+        | 'debtor'
+        | 'claims-officer'
+        | 'process-server'
+      )[]
     | null;
   supervisor?: (string | null) | User;
+  /**
+   * Link this user to a specific client (for client portal access)
+   */
+  clientProfile?: (string | null) | Client;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -1632,6 +1649,28 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: string;
+  name: string;
+  email?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  contactPerson?: string | null;
+  /**
+   * 3‑4 letter code, e.g. ABC, used in account numbers (ABC#12345)
+   */
+  prefix: string;
+  /**
+   * Archive this client instead of deleting it.
+   */
+  archived?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1989,30 +2028,15 @@ export interface Account {
   homePhone?: string | null;
   lastContactedAt?: string | null;
   lastContactNotes?: string | null;
+  legalStatus?: ('none' | 'pending_review' | 'assigned' | 'in_court' | 'closed') | null;
+  assignedCourtAgent?: (string | null) | User;
+  /**
+   * Process server assigned to this account for service of documents
+   */
+  assignedProcessServer?: (string | null) | User;
+  serviceStatus?: ('not_assigned' | 'pending_service' | 'served' | 'not_found' | 'completed') | null;
   /**
    * Archive this account instead of deleting it.
-   */
-  archived?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "clients".
- */
-export interface Client {
-  id: string;
-  name: string;
-  email?: string | null;
-  address?: string | null;
-  phone?: string | null;
-  contactPerson?: string | null;
-  /**
-   * 3‑4 letter code, e.g. ABC, used in account numbers (ABC#12345)
-   */
-  prefix: string;
-  /**
-   * Archive this client instead of deleting it.
    */
   archived?: boolean | null;
   updatedAt: string;
@@ -2139,6 +2163,10 @@ export interface CallAttempt {
 export interface LegalCase {
   id: string;
   account: string | Account;
+  /**
+   * Court agent assigned to this case
+   */
+  assignedTo?: (string | null) | User;
   status?:
     | (
         | 'new'
@@ -2249,6 +2277,24 @@ export interface AccountDocument {
   document: string | Media;
   description?: string | null;
   uploadedBy?: (string | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "service-attempts".
+ */
+export interface ServiceAttempt {
+  id: string;
+  account: string | Account;
+  attemptDate: string;
+  outcome: 'served' | 'not_served' | 'refused' | 'moved' | 'deceased' | 'other';
+  notes?: string | null;
+  /**
+   * Photo of the service attempt (e.g., document served, location)
+   */
+  photo?: (string | null) | Media;
+  createdBy?: (string | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -2517,6 +2563,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'account-documents';
         value: string | AccountDocument;
+      } | null)
+    | ({
+        relationTo: 'service-attempts';
+        value: string | ServiceAttempt;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3510,6 +3560,7 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   roles?: T;
   supervisor?: T;
+  clientProfile?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -3548,6 +3599,10 @@ export interface AccountsSelect<T extends boolean = true> {
   homePhone?: T;
   lastContactedAt?: T;
   lastContactNotes?: T;
+  legalStatus?: T;
+  assignedCourtAgent?: T;
+  assignedProcessServer?: T;
+  serviceStatus?: T;
   archived?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3648,6 +3703,7 @@ export interface CallAttemptsSelect<T extends boolean = true> {
  */
 export interface LegalCasesSelect<T extends boolean = true> {
   account?: T;
+  assignedTo?: T;
   status?: T;
   attorney?: T;
   caseNumber?: T;
@@ -3756,6 +3812,20 @@ export interface AccountDocumentsSelect<T extends boolean = true> {
   document?: T;
   description?: T;
   uploadedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "service-attempts_select".
+ */
+export interface ServiceAttemptsSelect<T extends boolean = true> {
+  account?: T;
+  attemptDate?: T;
+  outcome?: T;
+  notes?: T;
+  photo?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

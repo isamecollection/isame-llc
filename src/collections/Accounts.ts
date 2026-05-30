@@ -47,6 +47,32 @@ export const Accounts: CollectionConfig = {
     { name: 'lastContactNotes', type: 'textarea' },
     // 👇 NEW FIELD
     {
+      name: 'legalStatus',
+      type: 'select',
+      options: ['none', 'pending_review', 'assigned', 'in_court', 'closed'],
+      defaultValue: 'none',
+      admin: { hidden: true },
+    },
+    {
+      name: 'assignedCourtAgent',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: { hidden: true },
+    },
+    {
+      name: 'assignedProcessServer',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: { description: 'Process server assigned to this account for service of documents' },
+    },
+    {
+      name: 'serviceStatus',
+      type: 'select',
+      options: ['not_assigned', 'pending_service', 'served', 'not_found', 'completed'],
+      defaultValue: 'not_assigned',
+      admin: { hidden: true },
+    },
+    {
       name: 'archived',
       type: 'checkbox',
       defaultValue: false,

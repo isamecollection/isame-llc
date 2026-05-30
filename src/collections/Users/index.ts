@@ -11,7 +11,6 @@ export const Users: CollectionConfig = {
       if (user?.roles?.includes('admin')) return true
       return { id: { equals: user?.id } }
     },
-    // ✅ Only admins and CRM managers can delete users
     delete: ({ req: { user } }) =>
       user?.roles?.some((r) => ['admin', 'crm-manager'].includes(r)) ?? false,
   },
@@ -38,6 +37,8 @@ export const Users: CollectionConfig = {
         { label: 'Collector', value: 'collector' },
         { label: 'Client', value: 'client' },
         { label: 'Debtor', value: 'debtor' },
+        { label: 'Claims Officer', value: 'claims-officer' },
+        { label: 'Process Server', value: 'process-server' },
       ],
       defaultValue: [],
       access: {
@@ -51,6 +52,21 @@ export const Users: CollectionConfig = {
       name: 'supervisor',
       type: 'relationship',
       relationTo: 'users',
+      access: {
+        update: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        create: ({ req: { user } }) =>
+          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+      },
+    },
+    {
+      name: 'clientProfile',
+      type: 'relationship',
+      relationTo: 'clients',
+      admin: {
+        condition: (data) => data?.roles?.includes('client'),
+        description: 'Link this user to a specific client (for client portal access)',
+      },
       access: {
         update: ({ req: { user } }) =>
           (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,

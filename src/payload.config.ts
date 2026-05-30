@@ -14,6 +14,7 @@ import { CronState } from './collections/CronState'
 import { Templates } from './collections/Templates'
 import { AccountDocuments } from './collections/AccountDocuments'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
+import { ServiceAttempts } from './collections/ServiceAttempts'
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -180,6 +181,7 @@ export default buildConfig({
     CronState,
     Templates,
     AccountDocuments,
+    ServiceAttempts,
   ],
 
   globals: [Header, Footer, Settings],

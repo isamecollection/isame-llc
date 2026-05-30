@@ -4,26 +4,25 @@ export const LegalCases: CollectionConfig = {
   slug: 'legal-cases',
   admin: { hidden: true },
   access: {
-    create: ({ req: { user } }) => {
-      if (!user) return false
-      return user.roles?.some((r) => ['court-agent', 'admin'].includes(r)) ?? false
-    },
+    create: ({ req: { user } }) =>
+      user?.roles?.some((r) => ['court-agent', 'claims-officer', 'admin'].includes(r)) ?? false,
     read: ({ req: { user } }) => {
       if (!user) return false
+      // claims-officer and admin can see all
+      if (user.roles?.some((r) => ['claims-officer', 'admin'].includes(r))) return true
+      // court-agent sees only their assigned cases
+      if (user.roles?.includes('court-agent')) {
+        return { assignedTo: { equals: user.id } }
+      }
+      // other roles can see all? Or restrict to collector/supervisor? Let's allow read for any CRM role.
       return (
-        user.roles?.some((r) =>
-          ['collector', 'crm-manager', 'supervisor', 'court-agent', 'admin'].includes(r),
-        ) ?? false
+        user.roles?.some((r) => ['collector', 'crm-manager', 'supervisor'].includes(r)) ?? false
       )
     },
-    update: ({ req: { user } }) => {
-      if (!user) return false
-      return user.roles?.some((r) => ['court-agent', 'admin'].includes(r)) ?? false
-    },
-    delete: ({ req: { user } }) => {
-      if (!user) return false
-      return user.roles?.some((r) => ['court-agent', 'admin'].includes(r)) ?? false
-    },
+    update: ({ req: { user } }) =>
+      user?.roles?.some((r) => ['court-agent', 'claims-officer', 'admin'].includes(r)) ?? false,
+    delete: ({ req: { user } }) =>
+      user?.roles?.some((r) => ['court-agent', 'claims-officer', 'admin'].includes(r)) ?? false,
   },
   fields: [
     {
@@ -32,6 +31,12 @@ export const LegalCases: CollectionConfig = {
       relationTo: 'accounts',
       required: true,
       unique: true,
+    },
+    {
+      name: 'assignedTo',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: { description: 'Court agent assigned to this case' },
     },
     {
       name: 'status',
@@ -56,27 +61,15 @@ export const LegalCases: CollectionConfig = {
       type: 'relationship',
       relationTo: 'users',
     },
-    {
-      name: 'caseNumber',
-      type: 'text',
-    },
-    {
-      name: 'court',
-      type: 'text',
-    },
+    { name: 'caseNumber', type: 'text' },
+    { name: 'court', type: 'text' },
     {
       name: 'caseType',
       type: 'select',
       options: ['small_claims', 'civil', 'default_judgment', 'garnishment', 'other'],
     },
-    {
-      name: 'filedDate',
-      type: 'date',
-    },
-    {
-      name: 'reason',
-      type: 'textarea',
-    },
+    { name: 'filedDate', type: 'date' },
+    { name: 'reason', type: 'textarea' },
     {
       name: 'documents',
       type: 'array',
@@ -108,10 +101,7 @@ export const LegalCases: CollectionConfig = {
         { name: 'interestRate', type: 'number' },
       ],
     },
-    {
-      name: 'notes',
-      type: 'textarea',
-    },
+    { name: 'notes', type: 'textarea' },
   ],
   timestamps: true,
 }

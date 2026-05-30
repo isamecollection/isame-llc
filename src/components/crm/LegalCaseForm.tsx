@@ -14,7 +14,6 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -22,7 +21,7 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
       try {
         const res = await fetch(`/api/legal-cases?where[account][equals]=${accountId}&limit=1`)
         const json = await res.json()
-        if (json.docs && json.docs.length > 0) {
+        if (json.docs?.length) {
           const c = json.docs[0]
           setCaseExists(true)
           setCaseId(c.id)
@@ -42,10 +41,9 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
     loadCase()
   }, [accountId])
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-
     const body = {
       status,
       caseNumber,
@@ -55,16 +53,13 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
       attorney: attorney || undefined,
       notes: notes || undefined,
     }
-
     const url = caseId ? `/api/legal-cases/${caseId}` : '/api/legal-cases'
     const method = caseId ? 'PATCH' : 'POST'
-
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(caseId ? body : { account: accountId, ...body }),
     })
-
     if (res.ok) {
       showToast(caseId ? 'Case updated!' : 'Case created!')
       window.location.reload()
@@ -77,13 +72,14 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
   if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading legal case…</p>
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6"
+    >
       <h3 className="text-lg font-semibold">
         {caseExists ? 'Edit Legal Case' : 'Initiate Legal Case'}
       </h3>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Status */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Status
@@ -91,7 +87,7 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           >
             <option value="new">New</option>
             <option value="under_review">Under Review</option>
@@ -106,22 +102,18 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
             <option value="closed">Closed</option>
           </select>
         </div>
-
-        {/* Attorney */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Attorney (user ID)
+            Attorney (User ID)
           </label>
           <input
             type="text"
             value={attorney}
             onChange={(e) => setAttorney(e.target.value)}
             placeholder="User ID"
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
         </div>
-
-        {/* Case Number */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Case Number
@@ -130,11 +122,9 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
             type="text"
             value={caseNumber}
             onChange={(e) => setCaseNumber(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
         </div>
-
-        {/* Court */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Court
@@ -143,11 +133,9 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
             type="text"
             value={court}
             onChange={(e) => setCourt(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
         </div>
-
-        {/* Filed Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Filed Date
@@ -156,12 +144,10 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
             type="date"
             value={filedDate}
             onChange={(e) => setFiledDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
         </div>
       </div>
-
-      {/* Reason */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Reason for Escalation
@@ -170,11 +156,9 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
           rows={3}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 resize-y"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
         />
       </div>
-
-      {/* Internal Notes */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Internal Notes
@@ -183,10 +167,9 @@ export function LegalCaseForm({ accountId }: { accountId: string }) {
           rows={2}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 resize-y"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
         />
       </div>
-
       <button
         type="submit"
         disabled={submitting}
