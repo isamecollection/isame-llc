@@ -1,4 +1,3 @@
-// public/sw.js
 const CACHE_NAME = 'isame-crm-v1'
 
 self.addEventListener('install', (event) => {
