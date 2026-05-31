@@ -8,6 +8,8 @@ const ALL_ROLES = [
   'crm-manager',
   'supervisor',
   'court-agent',
+  'process-server',
+  'claims-officer',
   'collector',
   'client',
   'debtor',

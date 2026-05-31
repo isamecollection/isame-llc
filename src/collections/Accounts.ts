@@ -109,7 +109,7 @@ export const Accounts: CollectionConfig = {
       defaultValue: 'not_assigned',
       admin: { hidden: true },
     },
-    // NEW: Service tracking fields
+    // Service tracking fields
     {
       name: 'serviceDate',
       type: 'date',

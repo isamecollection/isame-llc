@@ -136,7 +136,7 @@ export function LargeGradientComponent(props: LargeGradientProps) {
 
   return (
     <div
-      className={`relative flex items-center justify-center overflow-hidden ${heightClass}`}
+      className={`relative flex items-center justify-center overflow-hidden ${heightClass} pt-16 md:pt-0`}
       style={heightStyle}
     >
       {/* background */}
