@@ -4,18 +4,34 @@ import { useState } from 'react'
 export function ImportForm({ clients }: { clients: any[] }) {
   const [clientId, setClientId] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [progress, setProgress] = useState({ current: 0, total: 0 })
+  const [result, setResult] = useState('')
 
-  async function handleUpload(e: React.FormEvent) {
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!clientId || !file) return
     setSubmitting(true)
-    setMessage('')
+    setResult('')
+    setProgress({ current: 0, total: 0 })
 
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      const csv = event.target?.result as string
+    const text = await file.text()
+    const lines = text.trim().split('\n')
+    const header = lines[0]
+    const rows = lines.slice(1)
+    const totalRows = rows.length
+
+    setProgress({ current: 0, total: totalRows })
+
+    const BATCH_SIZE = 10
+    let totalCreated = 0
+    let totalUpdated = 0
+    const allErrors: string[] = []
+
+    for (let i = 0; i < totalRows; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE)
+      const csv = [header, ...batch].join('\n')
+
       try {
         const res = await fetch('/api/import-accounts', {
           method: 'POST',
@@ -23,20 +39,32 @@ export function ImportForm({ clients }: { clients: any[] }) {
           body: JSON.stringify({ csv, clientId }),
         })
         const json = await res.json()
-        setMessage(json.message || 'Import completed')
+
+        totalCreated += json.created || 0
+        totalUpdated += json.updated || 0
+        if (json.errors) {
+          allErrors.push(...json.errors)
+        }
       } catch (err) {
-        setMessage('Import failed')
+        allErrors.push(`Batch ${i / BATCH_SIZE + 1}: Network error`)
       }
-      setSubmitting(false)
+
+      setProgress({ current: Math.min(i + BATCH_SIZE, totalRows), total: totalRows })
     }
-    reader.readAsText(file)
+
+    setSubmitting(false)
+    setProgress({ current: totalRows, total: totalRows })
+    setResult(
+      `Import complete. Created: ${totalCreated}, Updated: ${totalUpdated}, Errors: ${allErrors.length}`,
+    )
+
+    if (allErrors.length > 0) {
+      console.log('Import errors:', allErrors)
+    }
   }
 
   return (
-    <form
-      onSubmit={handleUpload}
-      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-5"
-    >
+    <form onSubmit={handleUpload} className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Select Client
@@ -69,17 +97,34 @@ export function ImportForm({ clients }: { clients: any[] }) {
         />
       </div>
 
+      {submitting && progress.total > 0 && (
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Processing…</span>
+            <span>
+              {progress.current} / {progress.total} rows
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+            <div
+              className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
         {submitting ? 'Importing…' : 'Upload & Import'}
       </button>
 
-      {message && (
+      {result && (
         <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-300">
-          {message}
+          {result}
         </div>
       )}
 

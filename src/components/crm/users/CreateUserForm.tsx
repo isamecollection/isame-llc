@@ -10,7 +10,14 @@ export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
   const [supervisorId, setSupervisorId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const roleOptions = ['collector', 'supervisor', 'crm-manager', 'court-agent']
+  const roleOptions = [
+    'collector',
+    'supervisor',
+    'crm-manager',
+    'court-agent',
+    'process-server',
+    'claims-officer',
+  ]
   const { showToast } = useToast()
 
   const toggleRole = (role: string) => {

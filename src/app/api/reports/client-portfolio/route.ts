@@ -11,9 +11,24 @@ export async function GET() {
       const accounts = await payload.find({
         collection: 'accounts',
         where: { client: { equals: client.id } },
+        limit: 9999, // ← ADD THIS
       })
 
       const accountIds = accounts.docs.map((a) => a.id)
+
+      // Only run these queries if there are accounts
+      if (accountIds.length === 0) {
+        return {
+          id: client.id,
+          name: client.name,
+          prefix: client.prefix,
+          totalOutstanding: 0,
+          totalCollected: 0,
+          accountCount: 0,
+          activeAgreements: 0,
+          legalCases: 0,
+        }
+      }
 
       const [payments, agreements, legalCases] = await Promise.all([
         payload.find({
@@ -21,23 +36,32 @@ export async function GET() {
           where: {
             and: [{ status: { equals: 'completed' } }, { account: { in: accountIds } }],
           },
+          limit: 9999, // ← ADD THIS
         }),
         payload.find({
           collection: 'agreements',
           where: {
             and: [{ account: { in: accountIds } }, { status: { equals: 'active' } }],
           },
+          limit: 9999, // ← ADD THIS
         }),
         payload.find({
           collection: 'legal-cases',
           where: {
             and: [{ account: { in: accountIds } }, { status: { not_equals: 'closed' } }],
           },
+          limit: 9999, // ← ADD THIS
         }),
       ])
 
-      const totalOutstanding = accounts.docs.reduce((sum, a) => sum + (a.currentBalance ?? 0), 0)
-      const totalCollected = payments.docs.reduce((sum, p) => sum + (p.amount ?? 0), 0)
+      // Calculate totals using stored fields
+      let totalOutstanding = 0
+      let totalCollected = 0
+
+      for (const account of accounts.docs) {
+        totalOutstanding += account.currentBalance || 0
+        totalCollected += account.paymentsReceived || 0
+      }
 
       return {
         id: client.id,

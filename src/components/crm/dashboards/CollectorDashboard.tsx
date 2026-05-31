@@ -15,13 +15,19 @@ async function getCollectorStats() {
     where: {
       and: [{ status: { equals: 'active' } }, { assignedCollector: { equals: user.id } }],
     },
-    limit: 500,
+    limit: 9999, // ← Changed from 500 to 9999 to get ALL accounts
   })
 
-  const totalOutstanding = assignedAccounts.docs.reduce(
-    (sum, acc) => sum + (acc.currentBalance ?? 0),
-    0,
-  )
+  // Calculate total collectable
+  let totalCollectable = 0
+  let totalOutstanding = 0
+
+  for (const account of assignedAccounts.docs) {
+    // Use stored totalCollectable directly (it's already calculated during import)
+    const collectable = account.totalCollectable || 0
+    totalCollectable += collectable
+    totalOutstanding += account.currentBalance ?? 0
+  }
 
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -37,6 +43,7 @@ async function getCollectorStats() {
         { date: { less_than_equal: endOfMonth } },
       ],
     },
+    limit: 9999, // ← Add this too for safety
   })
 
   const totalCollectedThisMonth = paymentsThisMonth.docs.reduce(
@@ -44,7 +51,7 @@ async function getCollectorStats() {
     0,
   )
 
-  // Broken promises today: missed scheduled payments for their assigned accounts
+  // Broken promises today
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayISO = today.toISOString()
@@ -61,6 +68,7 @@ async function getCollectorStats() {
   })
 
   return {
+    totalCollectable,
     totalOutstanding,
     totalCollectedThisMonth,
     brokenToday: brokenToday.totalDocs,
@@ -76,8 +84,9 @@ export default async function CollectorDashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Collector Dashboard</h1>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      {/* Stat cards - 4 columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard title="Total to Collect" value={stats.totalCollectable} />
         <StatCard title="Total Outstanding" value={stats.totalOutstanding} />
         <StatCard title="Collected This Month" value={stats.totalCollectedThisMonth} />
         <StatCard title="Broken Promises Today" value={stats.brokenToday} />
@@ -90,10 +99,16 @@ export default async function CollectorDashboard() {
 }
 
 function StatCard({ title, value }: { title: string; value: number }) {
+  // Format currency values with $ sign
+  const isCurrency =
+    title.includes('Total') || title.includes('Collected') || title.includes('Outstanding')
+
+  const displayValue = isCurrency ? `$${value.toLocaleString()}` : value.toLocaleString()
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
       <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-      <p className="text-2xl font-bold mt-1">{value.toLocaleString()}</p>
+      <p className="text-2xl font-bold mt-1">{displayValue}</p>
     </div>
   )
 }

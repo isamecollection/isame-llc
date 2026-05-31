@@ -1,8 +1,9 @@
 ﻿'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 type ClientStats = {
   totalAccounts: number
+  totalCollectable: number
   totalOutstanding: number
   totalCollected: number
   brokenCount: number
@@ -10,24 +11,28 @@ type ClientStats = {
 }
 
 export default function ManagerDashboardClient({ clients }: { clients: any[] }) {
-  const [selectedClientId, setSelectedClientId] = useState(
-    clients.length > 0 ? clients[0].id : ''
-  )
+  const [selectedClientId, setSelectedClientId] = useState(clients.length > 0 ? clients[0].id : '')
   const [stats, setStats] = useState<ClientStats | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const fetchStats = async (clientId: string) => {
+  const fetchStats = useCallback(async (clientId: string) => {
     setLoading(true)
-    const res = await fetch(`/api/manager/client-stats?clientId=${clientId}`)
-    const data = await res.json()
-    setStats(data)
+    try {
+      const res = await fetch(`/api/manager/client-stats?clientId=${clientId}`)
+      const data = await res.json()
+      setStats(data)
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+    }
     setLoading(false)
-  }
+  }, [])
 
+  // Fetch stats on initial load
   useEffect(() => {
     if (selectedClientId) {
       fetchStats(selectedClientId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -61,6 +66,7 @@ export default function ManagerDashboardClient({ clients }: { clients: any[] }) 
       {stats && !loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard title="Total Accounts" value={stats.totalAccounts} />
+          <StatCard title="Total Collectable" value={stats.totalCollectable} isCurrency />
           <StatCard title="Outstanding" value={stats.totalOutstanding} isCurrency />
           <StatCard title="Collected" value={stats.totalCollected} isCurrency />
           <StatCard title="Broken Promises" value={stats.brokenCount} highlight />
@@ -69,7 +75,7 @@ export default function ManagerDashboardClient({ clients }: { clients: any[] }) 
       )}
 
       {!stats && !loading && (
-        <p className="text-gray-500 dark:text-gray-400">No stats available.</p>
+        <p className="text-gray-500 dark:text-gray-400">Select a client to view stats.</p>
       )}
     </div>
   )

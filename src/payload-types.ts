@@ -2023,11 +2023,29 @@ export interface Account {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  street?: string | null;
+  townCity?: string | null;
+  district?: string | null;
   employer?: string | null;
   workPhone?: string | null;
   homePhone?: string | null;
   lastContactedAt?: string | null;
   lastContactNotes?: string | null;
+  loanNo?: string | null;
+  initialAccount?: number | null;
+  summonsAmount?: number | null;
+  courtCharge?: number | null;
+  fee20Percent?: number | null;
+  /**
+   * Total amount to be collected (Initial + Fee + Summons + Court Charge)
+   */
+  totalCollectable?: number | null;
+  paymentsReceived?: number | null;
+  courtReceiptNo?: string | null;
+  lodge?: string | null;
+  suitNo?: string | null;
+  statusWithIsame?: string | null;
+  method?: string | null;
   legalStatus?: ('none' | 'pending_review' | 'assigned' | 'in_court' | 'closed') | null;
   assignedCourtAgent?: (string | null) | User;
   /**
@@ -2035,6 +2053,14 @@ export interface Account {
    */
   assignedProcessServer?: (string | null) | User;
   serviceStatus?: ('not_assigned' | 'pending_service' | 'served' | 'not_found' | 'completed') | null;
+  /**
+   * Date when summons was served to debtor
+   */
+  serviceDate?: string | null;
+  /**
+   * Photo proof of served summons
+   */
+  serviceProof?: (string | null) | Media;
   /**
    * Archive this account instead of deleting it.
    */
@@ -3594,15 +3620,32 @@ export interface AccountsSelect<T extends boolean = true> {
   phone?: T;
   email?: T;
   address?: T;
+  street?: T;
+  townCity?: T;
+  district?: T;
   employer?: T;
   workPhone?: T;
   homePhone?: T;
   lastContactedAt?: T;
   lastContactNotes?: T;
+  loanNo?: T;
+  initialAccount?: T;
+  summonsAmount?: T;
+  courtCharge?: T;
+  fee20Percent?: T;
+  totalCollectable?: T;
+  paymentsReceived?: T;
+  courtReceiptNo?: T;
+  lodge?: T;
+  suitNo?: T;
+  statusWithIsame?: T;
+  method?: T;
   legalStatus?: T;
   assignedCourtAgent?: T;
   assignedProcessServer?: T;
   serviceStatus?: T;
+  serviceDate?: T;
+  serviceProof?: T;
   archived?: T;
   updatedAt?: T;
   createdAt?: T;

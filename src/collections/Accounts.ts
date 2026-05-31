@@ -8,7 +8,14 @@ export const Accounts: CollectionConfig = {
       if (!user) return false
       return (
         user.roles?.some((r) =>
-          ['crm-manager', 'collector', 'supervisor', 'court-agent', 'admin'].includes(r),
+          [
+            'crm-manager',
+            'collector',
+            'supervisor',
+            'court-agent',
+            'process-server',
+            'admin',
+          ].includes(r),
         ) ?? false
       )
     },
@@ -16,7 +23,14 @@ export const Accounts: CollectionConfig = {
       if (!user) return false
       return (
         user.roles?.some((r) =>
-          ['crm-manager', 'collector', 'supervisor', 'court-agent', 'admin'].includes(r),
+          [
+            'crm-manager',
+            'collector',
+            'supervisor',
+            'court-agent',
+            'process-server',
+            'admin',
+          ].includes(r),
         ) ?? false
       )
     },
@@ -40,12 +54,35 @@ export const Accounts: CollectionConfig = {
     { name: 'phone', type: 'text' },
     { name: 'email', type: 'email' },
     { name: 'address', type: 'textarea' },
+    // Address breakdown fields
+    { name: 'street', type: 'text' },
+    { name: 'townCity', type: 'text' },
+    { name: 'district', type: 'text' },
     { name: 'employer', type: 'text' },
     { name: 'workPhone', type: 'text' },
     { name: 'homePhone', type: 'text' },
     { name: 'lastContactedAt', type: 'date' },
     { name: 'lastContactNotes', type: 'textarea' },
-    // 👇 NEW FIELD
+    // Import-specific fields
+    { name: 'loanNo', type: 'text' },
+    { name: 'initialAccount', type: 'number' },
+    { name: 'summonsAmount', type: 'number' },
+    { name: 'courtCharge', type: 'number' },
+    { name: 'fee20Percent', type: 'number' },
+    {
+      name: 'totalCollectable',
+      type: 'number',
+      admin: {
+        description: 'Total amount to be collected (Initial + Fee + Summons + Court Charge)',
+      },
+    },
+    { name: 'paymentsReceived', type: 'number' },
+    { name: 'courtReceiptNo', type: 'text' },
+    { name: 'lodge', type: 'text' },
+    { name: 'suitNo', type: 'text' },
+    { name: 'statusWithIsame', type: 'text' },
+    { name: 'method', type: 'text' },
+    // Legal workflow fields
     {
       name: 'legalStatus',
       type: 'select',
@@ -72,6 +109,24 @@ export const Accounts: CollectionConfig = {
       defaultValue: 'not_assigned',
       admin: { hidden: true },
     },
+    // NEW: Service tracking fields
+    {
+      name: 'serviceDate',
+      type: 'date',
+      admin: {
+        hidden: true,
+        description: 'Date when summons was served to debtor',
+      },
+    },
+    {
+      name: 'serviceProof',
+      type: 'upload',
+      relationTo: 'media',
+      admin: {
+        hidden: true,
+        description: 'Photo proof of served summons',
+      },
+    },
     {
       name: 'archived',
       type: 'checkbox',
@@ -80,10 +135,9 @@ export const Accounts: CollectionConfig = {
         description: 'Archive this account instead of deleting it.',
       },
       access: {
-        // Only admins and CRM managers can toggle this flag
         update: ({ req: { user } }) =>
           (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
-        create: () => false, // never set during creation
+        create: () => false,
       },
     },
   ],

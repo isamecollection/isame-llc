@@ -1,6 +1,8 @@
 import { Tabs } from '@/components/crm/Tabs'
 import { CollectorProductivity } from '@/components/crm/reports/CollectorProductivity'
 import { ClientPortfolio } from '@/components/crm/reports/ClientPortfolio'
+import { ManagerClientReport } from '@/components/crm/reports/ManagerClientReport'
+import { IndividualClientReport } from '@/components/crm/reports/IndividualClientReport'
 
 export default async function ReportsPage() {
   return (
@@ -10,6 +12,8 @@ export default async function ReportsPage() {
         tabs={[
           { label: 'Collector Productivity', content: <CollectorProductivity /> },
           { label: 'Client Portfolio', content: <ClientPortfolio /> },
+          { label: 'Company Report', content: <ManagerClientReport /> },
+          { label: 'Client Report', content: <IndividualClientReport /> },
         ]}
       />
     </div>

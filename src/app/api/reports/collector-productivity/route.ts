@@ -8,11 +8,6 @@ export async function GET(request: Request) {
 
   const payload = await getPayload()
 
-  // Build date filter for the range
-  const dateFilter: any = {}
-  if (start) dateFilter.greater_than_equal = start
-  if (end) dateFilter.less_than_equal = end
-
   // Fetch all collectors
   const collectors = await payload.find({
     collection: 'users',
@@ -21,63 +16,52 @@ export async function GET(request: Request) {
 
   const results = await Promise.all(
     collectors.docs.map(async (user: any) => {
-      const [calls, notes, agreements, payments, broken] = await Promise.all([
+      // Build where clauses properly
+      const callsWhere: any = { createdBy: { equals: user.id } }
+      const notesWhere: any = { createdBy: { equals: user.id } }
+      const agreementsWhere: any = { createdBy: { equals: user.id } }
+      const paymentsWhere: any = {
+        and: [{ collectedBy: { equals: user.id } }, { status: { equals: 'completed' } }],
+      }
+
+      // Add date filters only if start/end are provided
+      if (start || end) {
+        const dateFilter: any = {}
+        if (start) dateFilter.greater_than_equal = start
+        if (end) dateFilter.less_than_equal = end
+
+        callsWhere.and = [{ createdAt: dateFilter }]
+        notesWhere.and = [{ createdAt: dateFilter }]
+        agreementsWhere.and = [{ createdAt: dateFilter }]
+        paymentsWhere.and.push({ date: dateFilter })
+      }
+
+      const [calls, notes, agreements, paymentsSum, broken] = await Promise.all([
         payload.count({
           collection: 'call-attempts',
-          where: {
-            and: [
-              { createdBy: { equals: user.id } },
-              dateFilter.createdAt ? { createdAt: dateFilter } : {},
-            ],
-          },
+          where: callsWhere,
         }),
         payload.count({
           collection: 'notes',
-          where: {
-            and: [
-              { createdBy: { equals: user.id } },
-              dateFilter.createdAt ? { createdAt: dateFilter } : {},
-            ],
-          },
+          where: notesWhere,
         }),
         payload.count({
           collection: 'agreements',
-          where: {
-            and: [
-              { createdBy: { equals: user.id } },
-              dateFilter.createdAt ? { createdAt: dateFilter } : {},
-            ],
-          },
+          where: agreementsWhere,
         }),
-        payload.count({
+        payload.find({
           collection: 'payments',
-          where: {
-            and: [
-              { collectedBy: { equals: user.id } },
-              { status: { equals: 'completed' } },
-              dateFilter.date ? { date: dateFilter } : {},
-            ],
-          },
+          where: paymentsWhere,
+          limit: 9999,
         }),
         payload.count({
           collection: 'scheduled-payments',
           where: {
-            and: [{ status: { equals: 'missed' } }, { updatedAt: dateFilter.updatedAt || {} }],
+            and: [{ status: { equals: 'missed' } }, { account: { exists: true } }],
           },
         }),
       ])
 
-      // For payments, we need sum, not count. Let's fix that.
-      const paymentsSum = await payload.find({
-        collection: 'payments',
-        where: {
-          and: [
-            { collectedBy: { equals: user.id } },
-            { status: { equals: 'completed' } },
-            dateFilter.date ? { date: dateFilter } : {},
-          ],
-        },
-      })
       const totalCollected = paymentsSum.docs.reduce((sum, p) => sum + (p.amount ?? 0), 0)
 
       return {
@@ -86,6 +70,7 @@ export async function GET(request: Request) {
         calls: calls.totalDocs,
         notes: notes.totalDocs,
         agreementsCreated: agreements.totalDocs,
+        paymentsReceived: paymentsSum.totalDocs,
         totalCollected,
         promisesBroken: broken.totalDocs,
       }
