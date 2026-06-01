@@ -59,6 +59,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
                 <NavLink href="/crm/users">👥 Users</NavLink>
                 <NavLink href="/crm/clients">🏢 Clients</NavLink>
                 <NavLink href="/crm/import">➕ Add Accounts</NavLink>
+                <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink> {/* ← ADD */}
               </>
             )}
 

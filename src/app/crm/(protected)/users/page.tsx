@@ -16,7 +16,7 @@ export default async function UsersPage() {
   const allUsers = await payload.find({
     collection: 'users',
     sort: 'name',
-    limit: 100,
+    limit: 9999,
   })
 
   const supervisors = await payload.find({
@@ -25,11 +25,21 @@ export default async function UsersPage() {
     sort: 'name',
   })
 
+  const courtAgents = await payload.find({
+    collection: 'users',
+    where: { roles: { contains: 'court-agent' } },
+    sort: 'name',
+  })
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">User Management</h1>
       <CreateUserForm supervisors={supervisors.docs} />
-      <UserList users={allUsers.docs} />
+      <UserList
+        users={allUsers.docs}
+        supervisors={supervisors.docs}
+        courtAgents={courtAgents.docs}
+      />
     </div>
   )
 }

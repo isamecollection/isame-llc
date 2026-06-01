@@ -11,10 +11,8 @@ function parseCSVLine(line: string): string[] {
   const result: string[] = []
   let current = ''
   let inQuotes = false
-
   for (let i = 0; i < line.length; i++) {
     const char = line[i]
-
     if (char === '"') {
       if (inQuotes && line[i + 1] === '"') {
         current += '"'
@@ -29,17 +27,12 @@ function parseCSVLine(line: string): string[] {
       current += char
     }
   }
-
   result.push(current)
   return result
 }
 
 export async function POST(request: Request) {
   const { csv, clientId } = await request.json()
-
-  console.log('=== IMPORT START ===')
-  console.log('Client ID:', clientId)
-  console.log('CSV length:', csv?.length || 0)
 
   if (!csv || !clientId) {
     return NextResponse.json({ message: 'Missing CSV data or client ID' }, { status: 400 })
@@ -50,17 +43,13 @@ export async function POST(request: Request) {
   let client
   try {
     client = await payload.findByID({ collection: 'clients', id: clientId })
-    console.log('Client:', client.name, 'Prefix:', client.prefix)
   } catch {
     return NextResponse.json({ message: 'Client not found' }, { status: 400 })
   }
   const prefix = (client.prefix as string).toUpperCase()
 
-  // Handle both \n and \r\n line endings
   const normalizedCsv = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const lines = normalizedCsv.trim().split('\n')
-
-  console.log('Total lines (including header):', lines.length)
 
   if (lines.length < 2) {
     return NextResponse.json(
@@ -70,16 +59,12 @@ export async function POST(request: Request) {
   }
 
   const headers = parseCSVLine(lines[0]).map((h: string) => h.trim())
-  console.log('Headers found:', headers)
-
   const dataRows = lines.slice(1).filter((line: string) => {
     const trimmed = line.trim()
     if (!trimmed) return false
     if (trimmed.replace(/,/g, '').trim() === '') return false
     return true
   })
-
-  console.log('Data rows after filtering:', dataRows.length)
 
   let created = 0
   let updated = 0
@@ -93,7 +78,6 @@ export async function POST(request: Request) {
     })
 
     try {
-      // ── Extract fields ──
       let loanNo = record['Loan No.']?.trim() || ''
       if (!loanNo) {
         const custName = (record['Customer Name'] || '').replace(/\s+/g, '-').slice(0, 20)
@@ -101,17 +85,12 @@ export async function POST(request: Request) {
       }
       const debtorName = record['Customer Name']?.trim() || ''
 
-      if (!debtorName && !loanNo) {
-        console.log(`Row ${i + 1}: Empty name and loan, skipping`)
-        continue
-      }
+      if (!debtorName && !loanNo) continue
 
-      // Address components
       let street = record['Street']?.trim() || ''
       let townCity = record['City/Town']?.trim() || ''
       let district = record['District']?.trim() || ''
 
-      // Fallback: parse combined Address if separate fields are empty
       if (!street && !townCity && record['Address']) {
         const addressParts = record['Address']
           .split(',')
@@ -124,12 +103,10 @@ export async function POST(request: Request) {
 
       const addressRaw = [street, townCity, district].filter((s) => s.length > 0).join(', ')
 
-      // Financial fields – safe parsing
       const initialAccount = safeParseFloat(record['Initial Account'] || '')
       const paymentAgreement = safeParseFloat(record['Payment Agreement'] || '')
       const paymentsReceived = safeParseFloat(record['Payments Received'] || '')
 
-      // Other fields
       const method = record['Method']?.trim() || ''
       const comment = record['Comment']?.trim() || ''
       const courtReceiptNo = record['Court Receipt NO.']?.trim() || ''
@@ -137,19 +114,17 @@ export async function POST(request: Request) {
       const suitNo = record['Suit No.']?.trim() || ''
       const statusWithIsame = record['STATUS W/ISAME']?.trim() || ''
 
-      // ── Calculate financial fields ──
-      const isBelizeCity = townCity.toLowerCase().includes('belize city')
-      const courtCharge = 4
-      const summonsAmount = isBelizeCity ? 25 : 50
+      // ── NEW: No auto court charges ──
+      const summonsAmount = 0
+      const courtCharge = 0
       const fee20Percent = Math.round(initialAccount * 0.2 * 100) / 100
-      const totalCollectable =
-        Math.round((initialAccount + fee20Percent + summonsAmount + courtCharge) * 100) / 100
+      const totalCollectable = Math.round((initialAccount + fee20Percent) * 100) / 100
       const currentBalance = Math.max(
         0,
         Math.round((totalCollectable - paymentsReceived) * 100) / 100,
       )
 
-      // ── Determine account status ──
+      // Determine account status
       let status: 'active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed' = 'active'
       if (statusWithIsame.toUpperCase() === 'PAID') {
         status = 'paid'
@@ -157,23 +132,19 @@ export async function POST(request: Request) {
         status = 'settled'
       }
 
-      // ── Determine legalStatus based on Method field ──
+      // Determine legalStatus based on Method
       let legalStatus: 'none' | 'pending_review' | 'assigned' | 'in_court' | 'closed' = 'none'
       const methodLower = method.toLowerCase()
 
       if (methodLower.includes('court')) {
-        // Method explicitly says "Court" - account is in court
         legalStatus = 'in_court'
         status = 'legal'
       } else if (methodLower.includes('personally served')) {
-        // Personally served - already served, in court process
         legalStatus = 'in_court'
         status = 'legal'
       } else if (methodLower.includes('served on') || methodLower.includes('served')) {
-        // Served by someone - assigned stage
         legalStatus = 'assigned'
       } else if (methodLower.includes('agreement') || methodLower.includes('payment')) {
-        // Payment agreement - not in legal process
         legalStatus = 'none'
       } else if (
         methodLower.includes('adjutant') ||
@@ -183,59 +154,33 @@ export async function POST(request: Request) {
         methodLower.includes('sent to pg') ||
         methodLower.includes('to serve over')
       ) {
-        // Needs attention but not yet in court
         legalStatus = 'pending_review'
       }
 
-      // ── Determine serviceStatus based on Method field ──
+      // Service status
       let serviceStatus: 'not_assigned' | 'pending_service' | 'served' | 'not_found' | 'completed' =
         'not_assigned'
-
-      if (methodLower.includes('personally served')) {
-        serviceStatus = 'served'
-      } else if (methodLower.includes('served on')) {
-        serviceStatus = 'served'
-      } else if (methodLower.includes('served')) {
+      if (
+        methodLower.includes('personally served') ||
+        methodLower.includes('served on') ||
+        methodLower.includes('served')
+      ) {
         serviceStatus = 'served'
       } else if (methodLower.includes('to serve over')) {
         serviceStatus = 'pending_service'
       }
 
-      // Debug first 3 rows
-      if (i < 3) {
-        console.log(`Row ${i + 1}: ${debtorName}`)
-        console.log(
-          `  Method: ${method} → status: ${status}, legalStatus: ${legalStatus}, serviceStatus: ${serviceStatus}`,
-        )
-        console.log(
-          `  Financial: Initial=${initialAccount}, Fee=${fee20Percent}, Summons=${summonsAmount}, Court=${courtCharge}`,
-        )
-        console.log(
-          `  Total=${totalCollectable}, Paid=${paymentsReceived}, Balance=${currentBalance}`,
-        )
-      }
+      const accountNumber = `${prefix}#${(i + 1).toString().padStart(4, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 
-      // Generate account number
-      const accountNumber = `${prefix}#${(i + 1).toString().padStart(4, '0')}-${Math.random()
-        .toString(36)
-        .slice(2, 6)
-        .toUpperCase()}`
-
-      // Find existing account by loan number
       let accountId: string | null = null
       if (loanNo) {
         const existing = await payload.find({
           collection: 'accounts',
-          where: {
-            and: [{ loanNo: { equals: loanNo } }, { client: { equals: clientId } }],
-          },
+          where: { and: [{ loanNo: { equals: loanNo } }, { client: { equals: clientId } }] },
         })
-        if (existing.docs.length > 0) {
-          accountId = existing.docs[0].id as string
-        }
+        if (existing.docs.length > 0) accountId = existing.docs[0].id as string
       }
 
-      // ── Build account data ──
       const accountData = {
         debtorName,
         address: addressRaw,
@@ -262,28 +207,14 @@ export async function POST(request: Request) {
         client: clientId,
       }
 
-      // ── Create or update the account ──
       if (accountId) {
-        await payload.update({
-          collection: 'accounts',
-          id: accountId,
-          data: accountData,
-        })
+        await payload.update({ collection: 'accounts', id: accountId, data: accountData })
         updated++
-        console.log(`  ✓ Updated: ${debtorName}`)
       } else {
-        await payload.create({
-          collection: 'accounts',
-          data: {
-            ...accountData,
-            accountNumber,
-          },
-        })
+        await payload.create({ collection: 'accounts', data: { ...accountData, accountNumber } })
         created++
-        console.log(`  ✓ Created: ${debtorName}`)
       }
 
-      // Get account ID for related records
       if (!accountId) {
         const newAccount = await payload.find({
           collection: 'accounts',
@@ -292,7 +223,6 @@ export async function POST(request: Request) {
         accountId = newAccount.docs[0]?.id as string
       }
 
-      // ── Create payment agreement (if any) ──
       if (paymentAgreement > 0 && accountId) {
         await payload.create({
           collection: 'agreements',
@@ -306,7 +236,6 @@ export async function POST(request: Request) {
         })
       }
 
-      // ── Record payments received (if any) ──
       if (paymentsReceived > 0 && accountId) {
         await payload.create({
           collection: 'payments',
@@ -321,20 +250,14 @@ export async function POST(request: Request) {
         })
       }
 
-      // ── Save comment as a note ──
       if (comment && accountId) {
         await payload.create({
           collection: 'notes',
-          data: {
-            account: accountId,
-            content: `[Import] ${comment}`,
-          },
+          data: { account: accountId, content: `[Import] ${comment}` },
           overrideAccess: true,
         })
       }
 
-      // ── Create legal case if method mentions court ──
-      // ── Create legal case if method mentions court ──
       if (methodLower.includes('court') && accountId) {
         const existingCases = await payload.find({
           collection: 'legal-cases',
@@ -345,24 +268,19 @@ export async function POST(request: Request) {
             collection: 'legal-cases',
             data: {
               account: accountId,
-              status: 'filed', // ← CHANGE FROM 'in_court' TO 'filed'
+              status: 'filed',
               caseNumber: suitNo || courtReceiptNo || undefined,
               court: lodge || undefined,
-              reason: `Imported from CSV. Method: ${method}. Court Receipt: ${courtReceiptNo || 'N/A'}`,
+              reason: `Imported from CSV. Method: ${method}.`,
             },
             overrideAccess: true,
           })
         }
       }
     } catch (error: any) {
-      console.error(`Error on row ${i + 1}:`, error.message)
       errors.push(`Row ${i + 1}: ${error.message}`)
     }
   }
-
-  console.log(`=== IMPORT COMPLETE ===`)
-  console.log(`Created: ${created}, Updated: ${updated}, Errors: ${errors.length}`)
-  console.log(`Total rows processed: ${dataRows.length}`)
 
   return NextResponse.json({
     message: `Import complete. Created: ${created}, Updated: ${updated}, Errors: ${errors.length}`,

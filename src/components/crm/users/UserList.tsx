@@ -15,10 +15,20 @@ const ALL_ROLES = [
   'debtor',
 ]
 
-export function UserList({ users: initialUsers }: { users: any[] }) {
+export function UserList({
+  users: initialUsers,
+  supervisors,
+  courtAgents,
+}: {
+  users: any[]
+  supervisors: any[]
+  courtAgents: any[]
+}) {
   const [users, setUsers] = useState(initialUsers)
   const [editing, setEditing] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [selectedSupervisor, setSelectedSupervisor] = useState<string>('')
+  const [selectedCourtAgent, setSelectedCourtAgent] = useState<string>('')
   const [resetting, setResetting] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -27,11 +37,15 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
   const startEditing = (user: any) => {
     setEditing(user.id)
     setSelectedRoles([...user.roles])
+    setSelectedSupervisor(user.supervisor || '')
+    setSelectedCourtAgent(user.courtAgentSupervisor || '')
   }
 
   const cancelEditing = () => {
     setEditing(null)
     setSelectedRoles([])
+    setSelectedSupervisor('')
+    setSelectedCourtAgent('')
   }
 
   const saveRoles = async (userId: string) => {
@@ -39,14 +53,29 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
     const res = await fetch(`/api/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roles: selectedRoles }),
+      body: JSON.stringify({
+        roles: selectedRoles,
+        supervisor: selectedSupervisor || null,
+        courtAgentSupervisor: selectedCourtAgent || null,
+      }),
     })
     if (res.ok) {
-      showToast('Roles updated')
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, roles: selectedRoles } : u)))
+      showToast('User updated')
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? {
+                ...u,
+                roles: selectedRoles,
+                supervisor: selectedSupervisor || null,
+                courtAgentSupervisor: selectedCourtAgent || null,
+              }
+            : u,
+        ),
+      )
       cancelEditing()
     } else {
-      showToast('Failed to update roles', 'error')
+      showToast('Failed to update user', 'error')
     }
     setSaving(false)
   }
@@ -80,7 +109,7 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
       showToast('User deleted')
       setUsers((prev) => prev.filter((u) => u.id !== userId))
     } else {
-      showToast('Failed to delete user. Only admins and CRM managers can delete users.', 'error')
+      showToast('Failed to delete user', 'error')
     }
     setDeleting(null)
   }
@@ -99,9 +128,23 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
                 <strong className="text-gray-900 dark:text-gray-100">{u.name}</strong>{' '}
                 <span className="text-gray-500 dark:text-gray-400">({u.email})</span>
                 {editing !== u.id && (
-                  <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
-                    – Roles: {u.roles?.join(', ')}
-                  </span>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    <span>Roles: {u.roles?.join(', ') || 'none'}</span>
+                    {u.supervisor && (
+                      <span className="ml-3">
+                        Supervisor:{' '}
+                        {typeof u.supervisor === 'object' ? u.supervisor.name : 'Assigned'}
+                      </span>
+                    )}
+                    {u.courtAgentSupervisor && (
+                      <span className="ml-3">
+                        Court Agent:{' '}
+                        {typeof u.courtAgentSupervisor === 'object'
+                          ? u.courtAgentSupervisor.name
+                          : 'Assigned'}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -128,14 +171,14 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
                       onClick={() => startEditing(u)}
                       className="text-sm text-blue-600 hover:underline"
                     >
-                      Edit Roles
+                      Edit
                     </button>
                     <button
                       onClick={() => resetPassword(u.id)}
                       disabled={resetting === u.id}
                       className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors whitespace-nowrap"
                     >
-                      {resetting === u.id ? 'Resetting…' : 'Reset Password'}
+                      {resetting === u.id ? 'Resetting…' : 'Reset'}
                     </button>
                     <button
                       onClick={() => deleteUser(u.id)}
@@ -150,21 +193,65 @@ export function UserList({ users: initialUsers }: { users: any[] }) {
             </div>
 
             {editing === u.id && (
-              <div className="mt-3 flex flex-wrap gap-3">
-                {ALL_ROLES.map((role) => (
-                  <label
-                    key={role}
-                    className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300"
+              <div className="mt-4 space-y-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                {/* Roles */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Roles</p>
+                  <div className="flex flex-wrap gap-3">
+                    {ALL_ROLES.map((role) => (
+                      <label
+                        key={role}
+                        className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedRoles.includes(role)}
+                          onChange={() => toggleRole(role)}
+                          className="rounded border-gray-300 dark:border-gray-600"
+                        />
+                        {role}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Supervisor (for collectors) */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Supervisor
+                  </p>
+                  <select
+                    value={selectedSupervisor}
+                    onChange={(e) => setSelectedSupervisor(e.target.value)}
+                    className="w-full sm:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectedRoles.includes(role)}
-                      onChange={() => toggleRole(role)}
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                    {role}
-                  </label>
-                ))}
+                    <option value="">-- none --</option>
+                    {supervisors.map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Court Agent Supervisor (for process servers) */}
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Court Agent (for Process Servers)
+                  </p>
+                  <select
+                    value={selectedCourtAgent}
+                    onChange={(e) => setSelectedCourtAgent(e.target.value)}
+                    className="w-full sm:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm"
+                  >
+                    <option value="">-- none --</option>
+                    {courtAgents.map((a: any) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </li>

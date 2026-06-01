@@ -150,7 +150,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         label: 'Edit',
         content: (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-6">
-            <EditAccountForm account={account} clients={clients} />
+            <EditAccountForm
+              account={account}
+              clients={clients}
+              userRole={activeRole || undefined}
+            />
             <hr className="border-gray-200 dark:border-gray-700" />
             <div>
               <h4 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h4>

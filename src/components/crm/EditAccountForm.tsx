@@ -2,7 +2,15 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '@/components/Toast'
 
-export function EditAccountForm({ account, clients }: { account: any; clients: any[] }) {
+export function EditAccountForm({
+  account,
+  clients,
+  userRole,
+}: {
+  account: any
+  clients: any[]
+  userRole?: string
+}) {
   const [debtorName, setDebtorName] = useState(account.debtorName || '')
   const [ssn, setSsn] = useState(account.ssn || '')
   const [phone, setPhone] = useState(account.phone || '')
@@ -15,27 +23,23 @@ export function EditAccountForm({ account, clients }: { account: any; clients: a
   const [workPhone, setWorkPhone] = useState(account.workPhone || '')
   const [homePhone, setHomePhone] = useState(account.homePhone || '')
   const [clientId, setClientId] = useState(account.client?.id || account.client || '')
-
-  // Import/Financial fields
   const [loanNo, setLoanNo] = useState(account.loanNo || '')
   const [initialAccount, setInitialAccount] = useState(account.initialAccount || '')
   const [paymentsReceived, setPaymentsReceived] = useState(account.paymentsReceived || '')
   const [method, setMethod] = useState(account.method || '')
   const [statusWithIsame, setStatusWithIsame] = useState(account.statusWithIsame || '')
-
-  // Court/Legal fields
   const [suitNo, setSuitNo] = useState(account.suitNo || '')
   const [courtReceiptNo, setCourtReceiptNo] = useState(account.courtReceiptNo || '')
   const [lodge, setLodge] = useState(account.lodge || '')
   const [legalStatus, setLegalStatus] = useState(account.legalStatus || 'none')
   const [serviceStatus, setServiceStatus] = useState(account.serviceStatus || 'not_assigned')
-
   const [submitting, setSubmitting] = useState(false)
-
   const [references, setReferences] = useState<any[]>([])
   const [newRef, setNewRef] = useState({ name: '', phone: '', relationship: '' })
-
   const { showToast } = useToast()
+
+  const isCollector = userRole === 'collector'
+  const canManageClient = !isCollector // Only non-collectors can change client
 
   useEffect(() => {
     async function loadRefs() {
@@ -79,53 +83,49 @@ export function EditAccountForm({ account, clients }: { account: any; clients: a
     e.preventDefault()
     setSubmitting(true)
 
-    // Recalculate financials if initial account changed
     const initial = parseFloat(initialAccount) || 0
-    const isBelizeCity = townCity.toLowerCase().includes('belize city')
-    const courtCharge = 4
-    const summonsAmount = isBelizeCity ? 25 : 50
     const fee20Percent = Math.round(initial * 0.2 * 100) / 100
-    const totalCollectable =
-      Math.round((initial + fee20Percent + summonsAmount + courtCharge) * 100) / 100
+    const totalCollectable = Math.round((initial + fee20Percent) * 100) / 100
     const paid = parseFloat(paymentsReceived) || 0
     const currentBalance = Math.max(0, Math.round((totalCollectable - paid) * 100) / 100)
+
+    const body: any = {
+      debtorName,
+      ssn: ssn || undefined,
+      phone: phone || undefined,
+      email: email || undefined,
+      address: address || undefined,
+      street: street || undefined,
+      townCity: townCity || undefined,
+      district: district || undefined,
+      employer: employer || undefined,
+      workPhone: workPhone || undefined,
+      homePhone: homePhone || undefined,
+      loanNo: loanNo || undefined,
+      initialAccount: initial || undefined,
+      paymentsReceived: paid || undefined,
+      method: method || undefined,
+      statusWithIsame: statusWithIsame || undefined,
+      fee20Percent,
+      totalCollectable,
+      currentBalance,
+      originalBalance: initial,
+    }
+
+    // Only non-collectors can update these
+    if (canManageClient) {
+      body.client = clientId || null
+      body.suitNo = suitNo || undefined
+      body.courtReceiptNo = courtReceiptNo || undefined
+      body.lodge = lodge || undefined
+      body.legalStatus = legalStatus || undefined
+      body.serviceStatus = serviceStatus || undefined
+    }
 
     const res = await fetch(`/api/accounts/${account.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        debtorName,
-        ssn: ssn || undefined,
-        phone: phone || undefined,
-        email: email || undefined,
-        address: address || undefined,
-        street: street || undefined,
-        townCity: townCity || undefined,
-        district: district || undefined,
-        employer: employer || undefined,
-        workPhone: workPhone || undefined,
-        homePhone: homePhone || undefined,
-        client: clientId || null,
-        // Import fields
-        loanNo: loanNo || undefined,
-        initialAccount: initial || undefined,
-        paymentsReceived: paid || undefined,
-        method: method || undefined,
-        statusWithIsame: statusWithIsame || undefined,
-        // Court/Legal fields
-        suitNo: suitNo || undefined,
-        courtReceiptNo: courtReceiptNo || undefined,
-        lodge: lodge || undefined,
-        legalStatus: legalStatus || undefined,
-        serviceStatus: serviceStatus || undefined,
-        // Recalculated fields
-        fee20Percent,
-        summonsAmount,
-        courtCharge,
-        totalCollectable,
-        currentBalance,
-        originalBalance: initial,
-      }),
+      body: JSON.stringify(body),
     })
     if (res.ok) {
       showToast('Account updated')
@@ -227,7 +227,7 @@ export function EditAccountForm({ account, clients }: { account: any; clients: a
         </div>
       </div>
 
-      {/* Import/Financial Fields */}
+      {/* Account & Financial */}
       <div>
         <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
           Account & Financial Details
@@ -270,7 +270,12 @@ export function EditAccountForm({ account, clients }: { account: any; clients: a
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            disabled={!canManageClient}
+            className={`w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 ${
+              canManageClient
+                ? 'bg-white dark:bg-gray-900'
+                : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
+            }`}
           >
             <option value="">-- no client --</option>
             {clients.map((c: any) => (
@@ -279,55 +284,62 @@ export function EditAccountForm({ account, clients }: { account: any; clients: a
               </option>
             ))}
           </select>
+          {isCollector && (
+            <p className="text-xs text-gray-400 col-span-full">
+              Client assignment is managed by your supervisor.
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Court/Legal Fields */}
-      <div>
-        <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Court & Legal</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <input
-            placeholder="Suit No."
-            value={suitNo}
-            onChange={(e) => setSuitNo(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            placeholder="Court Receipt No."
-            value={courtReceiptNo}
-            onChange={(e) => setCourtReceiptNo(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            placeholder="Lodge"
-            value={lodge}
-            onChange={(e) => setLodge(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-          <select
-            value={legalStatus}
-            onChange={(e) => setLegalStatus(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          >
-            <option value="none">Legal: None</option>
-            <option value="pending_review">Legal: Pending Review</option>
-            <option value="assigned">Legal: Assigned</option>
-            <option value="in_court">Legal: In Court</option>
-            <option value="closed">Legal: Closed</option>
-          </select>
-          <select
-            value={serviceStatus}
-            onChange={(e) => setServiceStatus(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          >
-            <option value="not_assigned">Service: Not Assigned</option>
-            <option value="pending_service">Service: Pending</option>
-            <option value="served">Service: Served</option>
-            <option value="not_found">Service: Not Found</option>
-            <option value="completed">Service: Completed</option>
-          </select>
+      {/* Court & Legal - only for non-collectors */}
+      {canManageClient && (
+        <div>
+          <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Court & Legal</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input
+              placeholder="Suit No."
+              value={suitNo}
+              onChange={(e) => setSuitNo(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+            <input
+              placeholder="Court Receipt No."
+              value={courtReceiptNo}
+              onChange={(e) => setCourtReceiptNo(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+            <input
+              placeholder="Lodge"
+              value={lodge}
+              onChange={(e) => setLodge(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+            <select
+              value={legalStatus}
+              onChange={(e) => setLegalStatus(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            >
+              <option value="none">Legal: None</option>
+              <option value="pending_review">Legal: Pending Review</option>
+              <option value="assigned">Legal: Assigned</option>
+              <option value="in_court">Legal: In Court</option>
+              <option value="closed">Legal: Closed</option>
+            </select>
+            <select
+              value={serviceStatus}
+              onChange={(e) => setServiceStatus(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            >
+              <option value="not_assigned">Service: Not Assigned</option>
+              <option value="pending_service">Service: Pending</option>
+              <option value="served">Service: Served</option>
+              <option value="not_found">Service: Not Found</option>
+              <option value="completed">Service: Completed</option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* References */}
       <div>
