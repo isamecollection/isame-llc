@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { StatCard } from '@/components/crm/StatCard'
 import { Skeleton } from '@/components/crm/Skeleton'
 import { EmptyState } from '@/components/crm/EmptyState'
@@ -41,26 +41,26 @@ export default function SupervisorDashboardClient({
     setLoading(false)
   }
 
-  const actionLabels: Record<string, string> = {
-    view: '👁️ viewed',
-    create: '➕ created',
-    update: '✏️ updated',
-    delete: '🗑️ deleted',
-    assign: '👤 assigned',
-    export: '📥 exported',
-  }
+  // Filter activity by selected agent, or show all
+  const filteredActivity = useMemo(() => {
+    if (!selectedAgentId) return recentActivity
+    return recentActivity.filter((log: any) => {
+      const userId = typeof log.user === 'object' ? log.user?.id : log.user
+      return userId === selectedAgentId
+    })
+  }, [recentActivity, selectedAgentId])
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left: Stats */}
-      <div className="lg:col-span-2">
+    <div className="space-y-6">
+      {/* Agent Selector & Stats */}
+      <div>
         <div className="mb-4">
           <select
             value={selectedAgentId}
             onChange={handleAgentChange}
             className="w-full sm:w-64 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900"
           >
-            <option value="">-- select an agent --</option>
+            <option value="">-- all agents --</option>
             {team.map((member: any) => (
               <option key={member.id} value={member.id}>
                 {member.name}
@@ -70,7 +70,7 @@ export default function SupervisorDashboardClient({
         </div>
 
         {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
@@ -84,7 +84,7 @@ export default function SupervisorDashboardClient({
         )}
 
         {stats && !loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard title="Total Accounts" value={stats.totalAccounts} />
             <StatCard title="Total Outstanding" value={stats.totalOutstanding} isCurrency />
             <StatCard
@@ -103,53 +103,76 @@ export default function SupervisorDashboardClient({
         )}
 
         {!stats && !loading && selectedAgentId && (
-          <EmptyState
-            icon="📊"
-            title="No stats available"
-            description="Select an agent above to view their performance."
-          />
+          <EmptyState icon="📊" title="No stats available" />
         )}
 
         {!selectedAgentId && (
           <EmptyState
             icon="👥"
             title="Select an agent"
-            description="Choose a team member to view their stats."
+            description="Choose a team member to view their performance."
           />
         )}
       </div>
 
-      {/* Right: Recent Activity */}
+      {/* Recent Activity - Full Width, Filtered */}
       <div>
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold">📋 Recent Team Activity</h2>
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              📋 {selectedAgentId ? 'Agent Activity' : 'Recent Team Activity'}
+            </h2>
+            <span className="text-xs text-gray-400">{filteredActivity.length} entries</span>
           </div>
-          {recentActivity.length === 0 ? (
+          {filteredActivity.length === 0 ? (
             <div className="p-4">
               <EmptyState
                 icon="📭"
                 title="No activity yet"
-                description="Team activity will appear here."
+                description="Activity will appear here as your team works."
               />
             </div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto">
+            <div className="max-h-[50vh] overflow-y-auto">
               <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Collector</th>
+                    <th className="px-4 py-3 font-semibold">Action</th>
+                    <th className="px-4 py-3 font-semibold">Account/Document</th>
+                    <th className="px-4 py-3 font-semibold">Collection</th>
+                    <th className="px-4 py-3 font-semibold text-right">Date & Time</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {recentActivity.map((log: any) => (
+                  {filteredActivity.map((log: any) => (
                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 dark:text-gray-100 text-xs">
-                            {log.user?.name || 'Unknown'}
-                          </span>
-                        </div>
+                        <span className="font-medium text-gray-900 dark:text-gray-100 text-xs">
+                          {log.user?.name || 'Unknown'}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
-                        {actionLabels[log.action] || log.action}{' '}
-                        <span className="font-medium">{log.documentName || log.collection}</span>
+                      <td className="px-4 py-3 text-xs">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            log.action === 'view'
+                              ? 'bg-blue-100 text-blue-700'
+                              : log.action === 'create'
+                                ? 'bg-green-100 text-green-700'
+                                : log.action === 'update'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : log.action === 'delete'
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {log.action}
+                        </span>
                       </td>
+                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 font-medium">
+                        {log.documentName || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{log.collection}</td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap text-right">
                         {new Date(log.timestamp).toLocaleDateString()}{' '}
                         {new Date(log.timestamp).toLocaleTimeString([], {
