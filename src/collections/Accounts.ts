@@ -6,18 +6,40 @@ export const Accounts: CollectionConfig = {
   access: {
     read: ({ req: { user } }) => {
       if (!user) return false
-      return (
-        user.roles?.some((r) =>
-          [
-            'crm-manager',
-            'collector',
-            'supervisor',
-            'court-agent',
-            'process-server',
-            'admin',
-          ].includes(r),
-        ) ?? false
-      )
+
+      const roles = user.roles || []
+
+      // Admin, CRM Manager, Claims Officer, Supervisor can see all accounts
+      if (
+        roles.some((r: string) =>
+          ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r),
+        )
+      ) {
+        return true
+      }
+
+      // Court Agent can only see accounts assigned to them
+      if (roles.includes('court-agent')) {
+        return {
+          and: [{ assignedCourtAgent: { equals: user.id } }],
+        }
+      }
+
+      // Process Server can only see accounts assigned to them
+      if (roles.includes('process-server')) {
+        return {
+          and: [{ assignedProcessServer: { equals: user.id } }],
+        }
+      }
+
+      // Collector can only see accounts assigned to them
+      if (roles.includes('collector')) {
+        return {
+          and: [{ assignedCollector: { equals: user.id } }],
+        }
+      }
+
+      return false
     },
     update: ({ req: { user } }) => {
       if (!user) return false
@@ -29,6 +51,7 @@ export const Accounts: CollectionConfig = {
             'supervisor',
             'court-agent',
             'process-server',
+            'claims-officer',
             'admin',
           ].includes(r),
         ) ?? false
@@ -54,7 +77,6 @@ export const Accounts: CollectionConfig = {
     { name: 'phone', type: 'text' },
     { name: 'email', type: 'email' },
     { name: 'address', type: 'textarea' },
-    // Address breakdown fields
     { name: 'street', type: 'text' },
     { name: 'townCity', type: 'text' },
     { name: 'district', type: 'text' },
@@ -63,7 +85,6 @@ export const Accounts: CollectionConfig = {
     { name: 'homePhone', type: 'text' },
     { name: 'lastContactedAt', type: 'date' },
     { name: 'lastContactNotes', type: 'textarea' },
-    // Import-specific fields
     { name: 'loanNo', type: 'text' },
     { name: 'initialAccount', type: 'number' },
     { name: 'summonsAmount', type: 'number' },
@@ -82,7 +103,6 @@ export const Accounts: CollectionConfig = {
     { name: 'suitNo', type: 'text' },
     { name: 'statusWithIsame', type: 'text' },
     { name: 'method', type: 'text' },
-    // Legal workflow fields
     {
       name: 'legalStatus',
       type: 'select',
@@ -109,31 +129,22 @@ export const Accounts: CollectionConfig = {
       defaultValue: 'not_assigned',
       admin: { hidden: true },
     },
-    // Service tracking fields
     {
       name: 'serviceDate',
       type: 'date',
-      admin: {
-        hidden: true,
-        description: 'Date when summons was served to debtor',
-      },
+      admin: { hidden: true, description: 'Date when summons was served to debtor' },
     },
     {
       name: 'serviceProof',
       type: 'upload',
       relationTo: 'media',
-      admin: {
-        hidden: true,
-        description: 'Photo proof of served summons',
-      },
+      admin: { hidden: true, description: 'Photo proof of served summons' },
     },
     {
       name: 'archived',
       type: 'checkbox',
       defaultValue: false,
-      admin: {
-        description: 'Archive this account instead of deleting it.',
-      },
+      admin: { description: 'Archive this account instead of deleting it.' },
       access: {
         update: ({ req: { user } }) =>
           (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,

@@ -42,22 +42,40 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || null
 
   const isClient = activeRole === 'client'
-  const isLimitedView = activeRole === 'process-server' || activeRole === 'claims-officer'
-  const canManageLegal =
-    activeRole === 'court-agent' || activeRole === 'claims-officer' || activeRole === 'admin'
+  const isProcessServer = activeRole === 'process-server'
+  const isClaimsOfficer = activeRole === 'claims-officer'
+  const isCourtAgent = activeRole === 'court-agent'
+  const isAdmin = activeRole === 'admin'
 
-  // Fetch data only needed for non‑limited roles
-  const [agreements, payments, scheduled] =
-    !isLimitedView && !isClient
-      ? await Promise.all([
-          payload.find({ collection: 'agreements', where: { account: { equals: account.id } } }),
-          payload.find({ collection: 'payments', where: { account: { equals: account.id } } }),
-          payload.find({
-            collection: 'scheduled-payments',
-            where: { account: { equals: account.id } },
-          }),
-        ])
-      : [{ docs: [] }, { docs: [] }, { docs: [] }]
+  // Limited view: process server, claims officer, court agent
+  const isLimitedView = isProcessServer || isClaimsOfficer || isCourtAgent
+
+  // Can manage legal: court agent, claims officer, admin
+  const canManageLegal = isCourtAgent || isClaimsOfficer || isAdmin
+
+  // Full access: collector, supervisor, crm-manager, admin
+  const hasFullAccess = !isLimitedView && !isClient
+
+  // Fetch data only needed for full-access roles
+  const [agreements, payments, scheduled] = hasFullAccess
+    ? await Promise.all([
+        payload.find({
+          collection: 'agreements',
+          where: { account: { equals: account.id } },
+          limit: 9999,
+        }),
+        payload.find({
+          collection: 'payments',
+          where: { account: { equals: account.id } },
+          limit: 9999,
+        }),
+        payload.find({
+          collection: 'scheduled-payments',
+          where: { account: { equals: account.id } },
+          limit: 9999,
+        }),
+      ])
+    : [{ docs: [] }, { docs: [] }, { docs: [] }]
 
   const clientsRes = await payload.find({
     collection: 'clients',
@@ -76,18 +94,20 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       content: <ClientAccountReport accountId={account.id} />,
     })
   }
-  // ── NON‑CLIENT VIEWS ──
-  else {
-    // Tabs visible to everyone (except clients)
+  // ── LIMITED VIEW (Court Agent, Process Server, Claims Officer) ──
+  else if (isLimitedView) {
+    // Notes tab - everyone gets this
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
+
+    // Documents tab - everyone gets this
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
 
-    // Service tab – visible to process servers, court agents, claims officers, admins
-    if (isLimitedView || canManageLegal) {
+    // Service tab - process servers and court agents
+    if (isProcessServer || isCourtAgent || isAdmin) {
       tabs.push({ label: 'Service', content: <ServiceAttemptsSection accountId={account.id} /> })
     }
 
-    // Legal tab – visible to court agents, claims officers, admins
+    // Legal tab - court agents, claims officers, admins
     if (canManageLegal) {
       tabs.push({
         label: 'Legal',
@@ -100,68 +120,70 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         ),
       })
     }
-
-    // Full set of tabs for non‑limited roles (collectors, managers, supervisors, etc.)
-    if (!isLimitedView) {
-      tabs.unshift(
-        { label: 'Agreements', content: <AgreementsSection accountId={account.id} /> },
-        {
-          label: 'Payments',
-          content: (
-            <>
-              <PaymentHistory payments={payments.docs} />
-              <ScheduledPaymentsSection accountId={account.id} />
-            </>
-          ),
-        },
-        {
-          label: 'Actions',
-          content: (
-            <div className="space-y-6">
-              <ActionsSection accountId={account.id} currentBalance={account.currentBalance ?? 0} />
-              <SendToLegalButton accountId={account.id} />
+  }
+  // ── FULL ACCESS (Collector, Supervisor, CRM Manager, Admin) ──
+  else {
+    tabs.push(
+      { label: 'Agreements', content: <AgreementsSection accountId={account.id} /> },
+      {
+        label: 'Payments',
+        content: (
+          <>
+            <PaymentHistory payments={payments.docs} />
+            <ScheduledPaymentsSection accountId={account.id} />
+          </>
+        ),
+      },
+      {
+        label: 'Actions',
+        content: (
+          <div className="space-y-6">
+            <ActionsSection accountId={account.id} currentBalance={account.currentBalance ?? 0} />
+            <SendToLegalButton accountId={account.id} />
+          </div>
+        ),
+      },
+      { label: 'Emails', content: <EmailsSection accountId={account.id} /> },
+      { label: 'Calls', content: <CallsSection accountId={account.id} /> },
+      { label: 'Notes', content: <NotesSection accountId={account.id} /> },
+      { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
+      { label: 'Service', content: <ServiceAttemptsSection accountId={account.id} /> },
+      {
+        label: 'Legal',
+        content: (
+          <div className="space-y-6">
+            <LegalCaseView accountId={account.id} />
+            {canManageLegal && (
+              <>
+                <LegalCaseForm accountId={account.id} />
+                <CourtEventsManager accountId={account.id} />
+              </>
+            )}
+          </div>
+        ),
+      },
+      {
+        label: 'Edit',
+        content: (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-6">
+            <EditAccountForm account={account} clients={clients} />
+            <hr className="border-gray-200 dark:border-gray-700" />
+            <div>
+              <h4 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h4>
+              <ArchiveAccountButton accountId={account.id} archived={account.archived ?? false} />
+              <DeleteAccountButton accountId={account.id} />
             </div>
-          ),
-        },
-        { label: 'Emails', content: <EmailsSection accountId={account.id} /> },
-        { label: 'Calls', content: <CallsSection accountId={account.id} /> },
-        {
-          label: 'Legal',
-          content: (
-            <div className="space-y-6">
-              <LegalCaseView accountId={account.id} />
-              {canManageLegal && (
-                <>
-                  <LegalCaseForm accountId={account.id} />
-                  <CourtEventsManager accountId={account.id} />
-                </>
-              )}
-            </div>
-          ),
-        },
-        {
-          label: 'Edit',
-          content: (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-6">
-              <EditAccountForm account={account} clients={clients} />
-              <hr className="border-gray-200 dark:border-gray-700" />
-              <div>
-                <h4 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h4>
-                <ArchiveAccountButton accountId={account.id} archived={account.archived ?? false} />
-                <DeleteAccountButton accountId={account.id} />
-              </div>
-            </div>
-          ),
-        },
-      )
-    }
+          </div>
+        ),
+      },
+    )
   }
 
   return (
     <div>
       <AccountHeader account={account} />
       <Tabs tabs={tabs} />
-      {!isLimitedView && !isClient && (
+      {hasFullAccess && (
         <div className="mt-4">
           <a
             href={`/crm/accounts/${account.id}/merge`}

@@ -6,18 +6,33 @@ export default async function AccountsPage() {
   const payload = await getPayload()
   const headersList = await headers()
   const cookieStore = await cookies()
-  const filter: any = { status: { equals: 'active' }, archived: { equals: false } }
   const { user } = await payload.auth({ headers: headersList })
 
   if (!user) return <p className="text-gray-500">Unauthorized</p>
 
   const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || 'collector'
-  const isManagement = ['supervisor', 'crm-manager', 'court-agent', 'admin'].includes(activeRole)
+
+  const isManagement = ['supervisor', 'crm-manager', 'claims-officer', 'admin'].includes(activeRole)
+  const isCourtAgent = activeRole === 'court-agent'
+  const isProcessServer = activeRole === 'process-server'
   const isCollector = activeRole === 'collector'
 
-  // Base filter: active accounts; for collector, only assigned
-  const baseFilter: any = { status: { equals: 'active' } }
-  if (!isManagement && isCollector) {
+  // Base filter based on role
+  const baseFilter: any = {}
+
+  if (isManagement) {
+    // Management sees all active accounts
+    baseFilter.status = { equals: 'active' }
+  } else if (isCourtAgent) {
+    // Court agent only sees accounts assigned to them
+    baseFilter.assignedCourtAgent = { equals: user.id }
+  } else if (isProcessServer) {
+    // Process server only sees accounts assigned to them
+    baseFilter.assignedProcessServer = { equals: user.id }
+    baseFilter.serviceStatus = { equals: 'pending_service' }
+  } else if (isCollector) {
+    // Collector only sees accounts assigned to them
+    baseFilter.status = { equals: 'active' }
     baseFilter.assignedCollector = { equals: user.id }
   }
 
