@@ -16,10 +16,23 @@ export default async function SupervisorDashboard() {
     limit: 9999,
   })
 
+  // Fetch recent activity from team members
+  const teamIds = team.docs.map((m) => m.id)
+  const recentActivity =
+    teamIds.length > 0
+      ? await payload.find({
+          collection: 'audit-logs',
+          where: { user: { in: teamIds } },
+          sort: '-timestamp',
+          limit: 20,
+          depth: 1,
+        })
+      : { docs: [] }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Supervisor Dashboard</h1>
-      <SupervisorDashboardClient team={team.docs} />
+      <SupervisorDashboardClient team={team.docs} recentActivity={recentActivity.docs} />
     </div>
   )
 }
