@@ -20,6 +20,7 @@ import { SendToLegalButton } from '@/components/crm/SendToLegalButton'
 import { ServiceAttemptsSection } from '@/components/crm/ServiceAttemptsSection'
 import { ClientAccountReport } from '@/components/crm/ClientAccountReport'
 import { headers, cookies } from 'next/headers'
+import { logAudit } from '@/lib/auditLogger'
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,11 +34,20 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     throw error
   }
 
-  // Authenticate
   const { user } = await payload.auth({ headers: await headers() })
   if (!user) {
     return <p className="text-gray-500">You must be logged in to view this account.</p>
   }
+
+  // 🔒 Audit: log account view
+  await logAudit({
+    user,
+    action: 'view',
+    collection: 'accounts',
+    documentId: account.id,
+    documentName: account.debtorName || account.accountNumber,
+  })
+
   const cookieStore = await cookies()
   const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || null
 
@@ -47,16 +57,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const isCourtAgent = activeRole === 'court-agent'
   const isAdmin = activeRole === 'admin'
 
-  // Limited view: process server, claims officer, court agent
   const isLimitedView = isProcessServer || isClaimsOfficer || isCourtAgent
-
-  // Can manage legal: court agent, claims officer, admin
   const canManageLegal = isCourtAgent || isClaimsOfficer || isAdmin
-
-  // Full access: collector, supervisor, crm-manager, admin
   const hasFullAccess = !isLimitedView && !isClient
 
-  // Fetch data only needed for full-access roles
   const [agreements, payments, scheduled] = hasFullAccess
     ? await Promise.all([
         payload.find({
@@ -77,37 +81,19 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       ])
     : [{ docs: [] }, { docs: [] }, { docs: [] }]
 
-  const clientsRes = await payload.find({
-    collection: 'clients',
-    sort: 'name',
-    limit: 100,
-  })
+  const clientsRes = await payload.find({ collection: 'clients', sort: 'name', limit: 100 })
   const clients = clientsRes.docs
 
-  // Build the tabs array
   const tabs: { label: string; content: React.ReactNode }[] = []
 
-  // ── CLIENT VIEW: only the Report tab ──
   if (isClient) {
-    tabs.push({
-      label: 'Report',
-      content: <ClientAccountReport accountId={account.id} />,
-    })
-  }
-  // ── LIMITED VIEW (Court Agent, Process Server, Claims Officer) ──
-  else if (isLimitedView) {
-    // Notes tab - everyone gets this
+    tabs.push({ label: 'Report', content: <ClientAccountReport accountId={account.id} /> })
+  } else if (isLimitedView) {
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
-
-    // Documents tab - everyone gets this
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
-
-    // Service tab - process servers and court agents
     if (isProcessServer || isCourtAgent || isAdmin) {
       tabs.push({ label: 'Service', content: <ServiceAttemptsSection accountId={account.id} /> })
     }
-
-    // Legal tab - court agents, claims officers, admins
     if (canManageLegal) {
       tabs.push({
         label: 'Legal',
@@ -120,9 +106,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         ),
       })
     }
-  }
-  // ── FULL ACCESS (Collector, Supervisor, CRM Manager, Admin) ──
-  else {
+  } else {
     tabs.push(
       { label: 'Agreements', content: <AgreementsSection accountId={account.id} /> },
       {

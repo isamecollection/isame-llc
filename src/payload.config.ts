@@ -15,6 +15,7 @@ import { Templates } from './collections/Templates'
 import { AccountDocuments } from './collections/AccountDocuments'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { ServiceAttempts } from './collections/ServiceAttempts'
+import { AuditLog } from './collections/AuditLog'
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -182,6 +183,7 @@ export default buildConfig({
     Templates,
     AccountDocuments,
     ServiceAttempts,
+    AuditLog, // ← ADD THIS
   ],
 
   globals: [Header, Footer, Settings],

@@ -87,6 +87,7 @@ export interface Config {
     templates: Template;
     'account-documents': AccountDocument;
     'service-attempts': ServiceAttempt;
+    'audit-logs': AuditLog;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -119,6 +120,7 @@ export interface Config {
     templates: TemplatesSelect<false> | TemplatesSelect<true>;
     'account-documents': AccountDocumentsSelect<false> | AccountDocumentsSelect<true>;
     'service-attempts': ServiceAttemptsSelect<false> | ServiceAttemptsSelect<true>;
+    'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -2326,6 +2328,32 @@ export interface ServiceAttempt {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs".
+ */
+export interface AuditLog {
+  id: string;
+  user?: (string | null) | User;
+  action?: ('view' | 'create' | 'update' | 'delete' | 'assign' | 'export') | null;
+  collection?: string | null;
+  documentId?: string | null;
+  documentName?: string | null;
+  changes?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  timestamp?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -2593,6 +2621,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'service-attempts';
         value: string | ServiceAttempt;
+      } | null)
+    | ({
+        relationTo: 'audit-logs';
+        value: string | AuditLog;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3869,6 +3901,23 @@ export interface ServiceAttemptsSelect<T extends boolean = true> {
   notes?: T;
   photo?: T;
   createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs_select".
+ */
+export interface AuditLogsSelect<T extends boolean = true> {
+  user?: T;
+  action?: T;
+  collection?: T;
+  documentId?: T;
+  documentName?: T;
+  changes?: T;
+  ip?: T;
+  userAgent?: T;
+  timestamp?: T;
   updatedAt?: T;
   createdAt?: T;
 }

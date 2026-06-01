@@ -8,6 +8,7 @@ import { MobileSidebar } from '@/components/crm/MobileSidebar'
 import { QuickLogProvider } from '@/components/QuickLogProvider'
 import { QuickLogPopup } from '@/components/QuickLogPopup'
 import { LogoutButton } from '@/components/crm/LogoutButton'
+import { SessionTimeout } from '@/components/crm/SessionTimeout'
 import Link from 'next/link'
 
 const ROLE_PRIORITY = [
@@ -89,6 +90,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
         </div>
 
         <QuickLogPopup />
+        <SessionTimeout />
       </QuickLogProvider>
     </RoleProvider>
   )
