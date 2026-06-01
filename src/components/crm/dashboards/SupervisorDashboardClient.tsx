@@ -121,39 +121,49 @@ export default function SupervisorDashboardClient({
 
       {/* Right: Recent Activity */}
       <div>
-        <h2 className="text-xl font-semibold mb-3">📋 Recent Team Activity</h2>
-        {recentActivity.length === 0 ? (
-          <EmptyState
-            icon="📭"
-            title="No activity yet"
-            description="Team activity will appear here."
-          />
-        ) : (
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-            {recentActivity.map((log: any) => (
-              <div
-                key={log.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {log.user?.name || 'Unknown'}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(log.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {actionLabels[log.action] || log.action}{' '}
-                  <span className="font-medium">{log.documentName || log.collection}</span>
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(log.timestamp).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold">📋 Recent Team Activity</h2>
           </div>
-        )}
+          {recentActivity.length === 0 ? (
+            <div className="p-4">
+              <EmptyState
+                icon="📭"
+                title="No activity yet"
+                description="Team activity will appear here."
+              />
+            </div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-sm text-left">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {recentActivity.map((log: any) => (
+                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 dark:text-gray-100 text-xs">
+                            {log.user?.name || 'Unknown'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">
+                        {actionLabels[log.action] || log.action}{' '}
+                        <span className="font-medium">{log.documentName || log.collection}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap text-right">
+                        {new Date(log.timestamp).toLocaleDateString()}{' '}
+                        {new Date(log.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
