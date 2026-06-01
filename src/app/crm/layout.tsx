@@ -7,7 +7,19 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { MobileSidebar } from '@/components/crm/MobileSidebar'
 import { QuickLogProvider } from '@/components/QuickLogProvider'
 import { QuickLogPopup } from '@/components/QuickLogPopup'
+import { LogoutButton } from '@/components/crm/LogoutButton'
 import Link from 'next/link'
+
+// Priority order for auto-detecting active role
+const ROLE_PRIORITY = [
+  'admin',
+  'crm-manager',
+  'supervisor',
+  'claims-officer',
+  'court-agent',
+  'process-server',
+  'collector',
+]
 
 export default async function CrmRootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
@@ -22,11 +34,15 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
 
   const roles: string[] = user?.roles ?? []
   const activeRoleCookie = cookieStore.get('activeRole')?.value
-  const activeRole = activeRoleCookie || roles[0] || null
+
+  // Auto-detect best CRM role if no cookie is set
+  const activeRole =
+    activeRoleCookie || ROLE_PRIORITY.find((r) => roles.includes(r)) || roles[0] || null
 
   const showManagement = activeRole === 'crm-manager' || activeRole === 'admin'
   const showSupervisor = activeRole === 'supervisor' || activeRole === 'admin'
-  const showReports = showManagement || showSupervisor || activeRole === 'admin'
+  const showReports =
+    showManagement || showSupervisor || activeRole === 'claims-officer' || activeRole === 'admin'
 
   return (
     <RoleProvider initialRole={activeRole} roles={roles}>
@@ -55,6 +71,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             <div className="border-t border-slate-700 pt-4 space-y-3 pb-16">
               <ThemeToggle />
               <RoleSwitcher roles={roles} activeRole={activeRole} />
+              <LogoutButton />
               <p className="text-sm mt-2">{user.name}</p>
             </div>
           </aside>
@@ -73,7 +90,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
           <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
 
-        {/* Quick‑log popup – appears after phone/SMS/WhatsApp interactions */}
         <QuickLogPopup />
       </QuickLogProvider>
     </RoleProvider>
