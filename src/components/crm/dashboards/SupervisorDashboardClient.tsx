@@ -1,5 +1,8 @@
 'use client'
 import { useState } from 'react'
+import { StatCard } from '@/components/crm/StatCard'
+import { Skeleton } from '@/components/crm/Skeleton'
+import { EmptyState } from '@/components/crm/EmptyState'
 
 type AgentStats = {
   totalAccounts: number
@@ -22,9 +25,13 @@ export default function SupervisorDashboardClient({ team }: { team: any[] }) {
       return
     }
     setLoading(true)
-    const res = await fetch(`/api/supervisor/agent-stats?agentId=${agentId}`)
-    const data = await res.json()
-    setStats(data)
+    try {
+      const res = await fetch(`/api/supervisor/agent-stats?agentId=${agentId}`)
+      const data = await res.json()
+      setStats(data)
+    } catch (error) {
+      console.error('Failed to fetch agent stats:', error)
+    }
     setLoading(false)
   }
 
@@ -45,43 +52,54 @@ export default function SupervisorDashboardClient({ team }: { team: any[] }) {
         </select>
       </div>
 
-      {loading && <p className="text-gray-500">Loading stats…</p>}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-2"
+            >
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-8 w-1/3" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {stats && !loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard title="Total Accounts" value={stats.totalAccounts} />
           <StatCard title="Total Outstanding" value={stats.totalOutstanding} isCurrency />
-          <StatCard title="Total Collected" value={stats.totalCollected} isCurrency />
-          <StatCard title="Broken Promises" value={stats.brokenPromisesCount} highlight />
-          <StatCard title="Future Promises (Total)" value={stats.futurePromisesTotal} isCurrency />
+          <StatCard
+            title="Total Collected"
+            value={stats.totalCollected}
+            isCurrency
+            variant="success"
+          />
+          <StatCard
+            title="Broken Promises"
+            value={stats.brokenPromisesCount}
+            variant={stats.brokenPromisesCount > 0 ? 'urgent' : 'default'}
+          />
+          <StatCard title="Future Promises" value={stats.futurePromisesTotal} isCurrency />
         </div>
       )}
 
       {!stats && !loading && selectedAgentId && (
-        <p className="text-gray-500">No stats available.</p>
+        <EmptyState
+          icon="📊"
+          title="No stats available"
+          description="Select an agent above to view their performance."
+        />
       )}
-    </div>
-  )
-}
 
-function StatCard({
-  title,
-  value,
-  isCurrency,
-  highlight,
-}: {
-  title: string
-  value: number
-  isCurrency?: boolean
-  highlight?: boolean
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? 'text-red-600' : ''}`}>
-        {isCurrency ? '$' : ''}
-        {value.toLocaleString()}
-      </p>
+      {!selectedAgentId && (
+        <EmptyState
+          icon="👥"
+          title="Select an agent"
+          description="Choose a team member to view their stats."
+        />
+      )}
     </div>
   )
 }

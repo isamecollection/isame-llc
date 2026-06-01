@@ -2,13 +2,13 @@ import { getPayload } from '@/payload'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { ServiceActions } from '@/components/crm/ServiceActions'
+import { EmptyState } from '@/components/crm/EmptyState'
 
 export default async function ProcessServerDashboard() {
   const payload = await getPayload()
   const { user } = await payload.auth({ headers: await headers() })
   if (!user) return <p className="text-gray-500">Not authorized</p>
 
-  // Accounts assigned to this process server with pending_service status
   const pendingAccounts = await payload.find({
     collection: 'accounts',
     where: {
@@ -21,7 +21,6 @@ export default async function ProcessServerDashboard() {
     depth: 1,
   })
 
-  // Recently served accounts
   const servedAccounts = await payload.find({
     collection: 'accounts',
     where: {
@@ -35,17 +34,31 @@ export default async function ProcessServerDashboard() {
     depth: 1,
   })
 
+  // Full empty state
+  if (pendingAccounts.totalDocs === 0 && servedAccounts.totalDocs === 0) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Process Server Dashboard</h1>
+        <EmptyState
+          icon="📬"
+          title="No accounts assigned"
+          description="You'll see accounts here once a Court Agent assigns them to you for service of summons."
+        />
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Process Server Dashboard</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Service</h3>
           <p className="text-3xl font-bold mt-1">{pendingAccounts.totalDocs}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Served</h3>
           <p className="text-3xl font-bold mt-1">{servedAccounts.totalDocs}</p>
         </div>
@@ -54,13 +67,17 @@ export default async function ProcessServerDashboard() {
       {/* Pending Service */}
       <h2 className="text-xl font-semibold mb-3">📋 Accounts to Serve</h2>
       {pendingAccounts.docs.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 mb-8">No accounts assigned for service.</p>
+        <EmptyState
+          icon="✅"
+          title="All caught up!"
+          description="No accounts pending service right now. Check back for new assignments."
+        />
       ) : (
         <div className="space-y-4 mb-8">
           {pendingAccounts.docs.map((account: any) => (
             <div
               key={account.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
@@ -122,49 +139,53 @@ export default async function ProcessServerDashboard() {
       )}
 
       {/* Recently Served */}
-      {servedAccounts.docs.length > 0 && (
-        <>
-          <h2 className="text-xl font-semibold mb-3">✅ Recently Served</h2>
-          <div className="max-h-96 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Debtor</th>
-                  <th className="px-4 py-3 font-semibold">Account #</th>
-                  <th className="px-4 py-3 font-semibold">Address</th>
-                  <th className="px-4 py-3 font-semibold">Served</th>
-                  <th className="px-4 py-3 font-semibold">Proof</th>
+      <h2 className="text-xl font-semibold mb-3">✅ Recently Served</h2>
+      {servedAccounts.docs.length === 0 ? (
+        <EmptyState
+          icon="📋"
+          title="No served accounts yet"
+          description="Accounts you mark as served will appear here."
+        />
+      ) : (
+        <div className="max-h-96 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+              <tr>
+                <th className="px-4 py-3 font-semibold">Debtor</th>
+                <th className="px-4 py-3 font-semibold">Account #</th>
+                <th className="px-4 py-3 font-semibold">Address</th>
+                <th className="px-4 py-3 font-semibold">Served</th>
+                <th className="px-4 py-3 font-semibold">Proof</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {servedAccounts.docs.map((account: any) => (
+                <tr
+                  key={account.id}
+                  className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <td className="px-4 py-3 font-medium">{account.debtorName || 'Unknown'}</td>
+                  <td className="px-4 py-3 text-gray-500">{account.accountNumber}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {[account.street, account.townCity].filter(Boolean).join(', ')}
+                  </td>
+                  <td className="px-4 py-3">
+                    {account.serviceDate
+                      ? new Date(account.serviceDate).toLocaleDateString()
+                      : 'N/A'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {account.serviceProof ? (
+                      <span className="text-green-600 dark:text-green-400">✓ Yes</span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {servedAccounts.docs.map((account: any) => (
-                  <tr
-                    key={account.id}
-                    className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  >
-                    <td className="px-4 py-3 font-medium">{account.debtorName || 'Unknown'}</td>
-                    <td className="px-4 py-3 text-gray-500">{account.accountNumber}</td>
-                    <td className="px-4 py-3 text-xs">
-                      {[account.street, account.townCity].filter(Boolean).join(', ')}
-                    </td>
-                    <td className="px-4 py-3">
-                      {account.serviceDate
-                        ? new Date(account.serviceDate).toLocaleDateString()
-                        : 'N/A'}
-                    </td>
-                    <td className="px-4 py-3">
-                      {account.serviceProof ? (
-                        <span className="text-green-600 dark:text-green-400">✓ Yes</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

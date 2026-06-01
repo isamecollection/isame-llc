@@ -10,7 +10,6 @@ import { QuickLogPopup } from '@/components/QuickLogPopup'
 import { LogoutButton } from '@/components/crm/LogoutButton'
 import Link from 'next/link'
 
-// Priority order for auto-detecting active role
 const ROLE_PRIORITY = [
   'admin',
   'crm-manager',
@@ -35,7 +34,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   const roles: string[] = user?.roles ?? []
   const activeRoleCookie = cookieStore.get('activeRole')?.value
 
-  // Auto-detect best CRM role if no cookie is set
   const activeRole =
     activeRoleCookie || ROLE_PRIORITY.find((r) => roles.includes(r)) || roles[0] || null
 
@@ -76,7 +74,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             </div>
           </aside>
 
-          {/* Mobile sidebar */}
+          {/* Mobile bottom nav */}
           <MobileSidebar
             showManagement={showManagement}
             showSupervisor={showSupervisor}
@@ -86,8 +84,8 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             userName={user.name || 'Unknown'}
           />
 
-          {/* Main content */}
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+          {/* Main content - pb-20 for mobile bottom nav clearance */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 lg:pb-0">{children}</main>
         </div>
 
         <QuickLogPopup />

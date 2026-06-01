@@ -1,12 +1,28 @@
 'use client'
 import { useState, useRef } from 'react'
+import { useToast } from '@/components/Toast'
+import { handleApiError } from '@/lib/errorHandler'
 
 export function ServiceActions({ accountId }: { accountId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0])
   const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null
+    setFile(selectedFile)
+    if (selectedFile) {
+      const reader = new FileReader()
+      reader.onloadend = () => setPreview(reader.result as string)
+      reader.readAsDataURL(selectedFile)
+    } else {
+      setPreview(null)
+    }
+  }
 
   const handleMarkServed = async () => {
     setSubmitting(true)
@@ -20,20 +36,21 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         }),
       })
       if (res.ok) {
-        alert('Marked as served!')
-        window.location.reload()
+        showToast('Marked as served!')
+        setTimeout(() => window.location.reload(), 500)
       } else {
-        alert('Failed to update')
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Failed to update', 'error')
       }
-    } catch {
-      alert('Network error')
+    } catch (err) {
+      showToast(handleApiError(err), 'error')
     }
     setSubmitting(false)
   }
 
   const handleUploadProof = async () => {
     if (!file) {
-      alert('Please select a photo')
+      showToast('Please take a photo or select a file', 'error')
       return
     }
     setSubmitting(true)
@@ -47,13 +64,14 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         body: formData,
       })
       if (res.ok) {
-        alert('Proof uploaded and marked as served!')
-        window.location.reload()
+        showToast('Proof uploaded and marked as served!')
+        setTimeout(() => window.location.reload(), 500)
       } else {
-        alert('Upload failed')
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Upload failed', 'error')
       }
-    } catch {
-      alert('Network error')
+    } catch (err) {
+      showToast(handleApiError(err), 'error')
     }
     setSubmitting(false)
   }
@@ -80,27 +98,52 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         onClick={() => setShowUpload(!showUpload)}
         className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
       >
-        📷 {showUpload ? 'Cancel' : 'Upload Photo Proof'}
+        📷 {showUpload ? 'Cancel' : 'Take Photo Proof'}
       </button>
 
       {showUpload && (
         <div className="space-y-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500">Take a photo of the served summons</p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            📸 Take Photo
+          </button>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             capture="environment"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="w-full text-sm"
+            onChange={handleFileChange}
+            className="hidden"
           />
-          {file && <p className="text-xs text-green-600">📎 {file.name}</p>}
+          {preview && (
+            <div className="relative">
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-full h-40 object-cover rounded-lg border"
+              />
+              <button
+                onClick={() => {
+                  setFile(null)
+                  setPreview(null)
+                }}
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          {file && !preview && <p className="text-xs text-green-600">📎 {file.name}</p>}
           <button
             onClick={handleUploadProof}
             disabled={submitting || !file}
-            className="w-full px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+            className="w-full px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
           >
-            {submitting ? 'Uploading...' : 'Upload & Mark Served'}
+            {submitting ? 'Uploading...' : 'Upload Proof & Mark Served'}
           </button>
         </div>
       )}

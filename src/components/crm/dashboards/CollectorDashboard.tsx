@@ -1,6 +1,8 @@
 import { getPayload } from '@/payload'
 import { headers, cookies } from 'next/headers'
 import { CollectorQueue } from '@/components/crm/CollectorQueue'
+import { EmptyState } from '@/components/crm/EmptyState'
+import { StatCard } from '@/components/crm/StatCard'
 
 async function getCollectorStats() {
   const payload = await getPayload()
@@ -15,17 +17,14 @@ async function getCollectorStats() {
     where: {
       and: [{ status: { equals: 'active' } }, { assignedCollector: { equals: user.id } }],
     },
-    limit: 9999, // ← Changed from 500 to 9999 to get ALL accounts
+    limit: 9999,
   })
 
-  // Calculate total collectable
   let totalCollectable = 0
   let totalOutstanding = 0
 
   for (const account of assignedAccounts.docs) {
-    // Use stored totalCollectable directly (it's already calculated during import)
-    const collectable = account.totalCollectable || 0
-    totalCollectable += collectable
+    totalCollectable += account.totalCollectable || 0
     totalOutstanding += account.currentBalance ?? 0
   }
 
@@ -43,7 +42,7 @@ async function getCollectorStats() {
         { date: { less_than_equal: endOfMonth } },
       ],
     },
-    limit: 9999, // ← Add this too for safety
+    limit: 9999,
   })
 
   const totalCollectedThisMonth = paymentsThisMonth.docs.reduce(
@@ -51,7 +50,6 @@ async function getCollectorStats() {
     0,
   )
 
-  // Broken promises today
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayISO = today.toISOString()
@@ -72,6 +70,7 @@ async function getCollectorStats() {
     totalOutstanding,
     totalCollectedThisMonth,
     brokenToday: brokenToday.totalDocs,
+    accountCount: assignedAccounts.totalDocs,
     user,
   }
 }
@@ -80,35 +79,37 @@ export default async function CollectorDashboard() {
   const stats = await getCollectorStats()
   if (!stats) return <p className="text-gray-500">Unable to load collector stats.</p>
 
+  if (stats.accountCount === 0) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Collector Dashboard</h1>
+        <EmptyState
+          icon="📋"
+          title="No accounts assigned yet"
+          description="Accounts will appear here once your supervisor assigns them to you. Check back soon!"
+        />
+      </div>
+    )
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Collector Dashboard</h1>
 
-      {/* Stat cards - 4 columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total to Collect" value={stats.totalCollectable} />
-        <StatCard title="Total Outstanding" value={stats.totalOutstanding} />
-        <StatCard title="Collected This Month" value={stats.totalCollectedThisMonth} />
-        <StatCard title="Broken Promises Today" value={stats.brokenToday} />
+        <StatCard title="Total to Collect" value={stats.totalCollectable} isCurrency />
+        <StatCard title="Total Outstanding" value={stats.totalOutstanding} isCurrency />
+        <StatCard
+          title="Collected This Month"
+          value={stats.totalCollectedThisMonth}
+          isCurrency
+          variant="success"
+        />
+        <StatCard title="Broken Promises Today" value={stats.brokenToday} variant="urgent" />
       </div>
 
       <h2 className="text-xl font-semibold mb-3">Work Queue</h2>
       <CollectorQueue collectorId={stats.user.id} />
-    </div>
-  )
-}
-
-function StatCard({ title, value }: { title: string; value: number }) {
-  // Format currency values with $ sign
-  const isCurrency =
-    title.includes('Total') || title.includes('Collected') || title.includes('Outstanding')
-
-  const displayValue = isCurrency ? `$${value.toLocaleString()}` : value.toLocaleString()
-
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-      <p className="text-2xl font-bold mt-1">{displayValue}</p>
     </div>
   )
 }

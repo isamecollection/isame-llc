@@ -5,8 +5,11 @@ import ManagerDashboardClient from './ManagerDashboardClient'
 export default async function ManagerDashboard() {
   const payload = await getPayload()
 
-  // Fetch all clients for the dropdown
-  const clients = await payload.find({ collection: 'clients', sort: 'name' })
+  const clients = await payload.find({
+    collection: 'clients',
+    sort: 'name',
+    limit: 9999,
+  })
 
   return (
     <div>

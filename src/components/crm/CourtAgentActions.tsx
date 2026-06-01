@@ -1,5 +1,7 @@
 'use client'
 import { useState } from 'react'
+import { useToast } from '@/components/Toast'
+import { handleApiError } from '@/lib/errorHandler'
 
 export function CourtAgentActions({
   accountId,
@@ -18,32 +20,33 @@ export function CourtAgentActions({
   const [notes, setNotes] = useState('')
   const [processServerId, setProcessServerId] = useState('')
   const [assigning, setAssigning] = useState(false)
+  const { showToast } = useToast()
 
   const handleUpdateCourtInfo = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-
     try {
       if (caseNumber || court) {
-        await fetch(`/api/accounts/${accountId}`, {
+        const res = await fetch(`/api/accounts/${accountId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            suitNo: caseNumber || undefined,
-            lodge: court || undefined,
-          }),
+          body: JSON.stringify({ suitNo: caseNumber || undefined, lodge: court || undefined }),
         })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          showToast(data.error || 'Failed to update account', 'error')
+          setSubmitting(false)
+          return
+        }
       }
-
       if (courtDate) {
         const casesRes = await fetch(`/api/legal-cases?where[account][equals]=${accountId}&limit=1`)
+        if (!casesRes.ok) throw new Error('Failed to fetch legal case')
         const cases = await casesRes.json()
-
         if (cases.docs?.length > 0) {
           const caseId = cases.docs[0].id
           const existingEvents = cases.docs[0].courtEvents || []
-
-          await fetch(`/api/legal-cases/${caseId}`, {
+          const updateRes = await fetch(`/api/legal-cases/${caseId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -54,26 +57,26 @@ export function CourtAgentActions({
                 {
                   eventDate: courtDate,
                   eventTime: courtTime || undefined,
-                  eventType: eventType,
+                  eventType,
                   notes: notes || undefined,
                 },
               ],
             }),
           })
+          if (!updateRes.ok) throw new Error('Failed to update legal case')
         }
       }
-
-      alert('Court information updated!')
-      window.location.reload()
-    } catch (error) {
-      alert('Failed to update court information')
+      showToast('Court information updated!')
+      setTimeout(() => window.location.reload(), 500)
+    } catch (err) {
+      showToast(handleApiError(err), 'error')
     }
     setSubmitting(false)
   }
 
   const handleAssignProcessServer = async () => {
     if (!processServerId) {
-      alert('Please select a process server')
+      showToast('Please select a process server', 'error')
       return
     }
     setAssigning(true)
@@ -87,13 +90,14 @@ export function CourtAgentActions({
         }),
       })
       if (res.ok) {
-        alert('Process server assigned!')
-        window.location.reload()
+        showToast('Process server assigned!')
+        setTimeout(() => window.location.reload(), 500)
       } else {
-        alert('Failed to assign process server')
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error || 'Failed to assign', 'error')
       }
-    } catch {
-      alert('Network error')
+    } catch (err) {
+      showToast(handleApiError(err), 'error')
     }
     setAssigning(false)
   }
@@ -104,6 +108,7 @@ export function CourtAgentActions({
         <select
           value={processServerId}
           onChange={(e) => setProcessServerId(e.target.value)}
+          aria-label="Assign process server"
           className="flex-1 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900 text-sm"
         >
           <option value="">Assign Server...</option>
@@ -160,7 +165,6 @@ export function CourtAgentActions({
               />
             </div>
           </div>
-
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5">
@@ -186,7 +190,6 @@ export function CourtAgentActions({
               />
             </div>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5">
               Event Type
@@ -203,7 +206,6 @@ export function CourtAgentActions({
               <option value="judgment">Judgment</option>
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5">
               Notes
@@ -216,7 +218,6 @@ export function CourtAgentActions({
               className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-sm resize-y"
             />
           </div>
-
           <button
             type="submit"
             disabled={submitting || !courtDate}

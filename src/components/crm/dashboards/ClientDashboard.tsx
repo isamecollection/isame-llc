@@ -1,6 +1,8 @@
 import { getPayload } from '@/payload'
 import { headers } from 'next/headers'
 import ClientDashboardCharts from './ClientDashboardCharts'
+import { StatCard } from '@/components/crm/StatCard'
+import { EmptyState } from '@/components/crm/EmptyState'
 
 async function getClientData(userId: string) {
   const payload = await getPayload()
@@ -13,24 +15,39 @@ async function getClientData(userId: string) {
     where: { client: { equals: clientId } },
     depth: 1,
     sort: '-currentBalance',
-    limit: 200,
+    limit: 9999,
   })
 
   const accountIds = accounts.docs.map((a) => a.id)
 
-  const [payments, agreements, legalCases] = await Promise.all([
-    payload.find({
-      collection: 'payments',
-      where: { status: { equals: 'completed' }, account: { in: accountIds } },
-    }),
-    payload.find({ collection: 'agreements', where: { account: { in: accountIds } } }),
-    payload.find({ collection: 'legal-cases', where: { account: { in: accountIds } } }),
-  ])
+  const [payments, agreements, legalCases] =
+    accountIds.length > 0
+      ? await Promise.all([
+          payload.find({
+            collection: 'payments',
+            where: { status: { equals: 'completed' }, account: { in: accountIds } },
+            limit: 9999,
+          }),
+          payload.find({
+            collection: 'agreements',
+            where: { account: { in: accountIds } },
+            limit: 9999,
+          }),
+          payload.find({
+            collection: 'legal-cases',
+            where: { account: { in: accountIds } },
+            limit: 9999,
+          }),
+        ])
+      : [{ docs: [] }, { docs: [] }, { docs: [] }]
 
-  const totalOutstanding = accounts.docs.reduce((sum, a) => sum + (a.currentBalance ?? 0), 0)
-  const totalCollected = payments.docs.reduce((sum, p) => sum + (p.amount ?? 0), 0)
+  let totalOutstanding = 0
+  let totalCollected = 0
+  for (const account of accounts.docs) {
+    totalOutstanding += account.currentBalance || 0
+    totalCollected += account.paymentsReceived || 0
+  }
 
-  // Chart data: daily collections last 7 days
   const today = new Date()
   const dailyCollections: { date: string; amount: number }[] = []
   for (let i = 6; i >= 0; i--) {
@@ -45,13 +62,11 @@ async function getClientData(userId: string) {
     dailyCollections.push({ date: dayStr, amount })
   }
 
-  // Agreements breakdown
   const agreementsKept = agreements.docs.filter(
     (a) => a.status === 'completed' || a.status === 'active',
   ).length
   const agreementsBroken = agreements.docs.filter((a) => a.status === 'breached').length
 
-  // Account status distribution
   const statusCounts: Record<string, number> = {}
   accounts.docs.forEach((acc) => {
     const st = acc.status || 'unknown'
@@ -78,21 +93,35 @@ export default async function ClientDashboard() {
   if (!user) return <p className="text-gray-500">Unauthorized</p>
 
   const data = await getClientData(user.id)
-  if (!data) return <p className="text-gray-500">No client profile linked to your account.</p>
+  if (!data)
+    return (
+      <EmptyState
+        icon="🔗"
+        title="No client profile linked"
+        description="Your account is not linked to a client profile yet."
+      />
+    )
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Client Portfolio</h1>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Total Outstanding" value={data.totalOutstanding} isCurrency />
-        <StatCard title="Total Collected" value={data.totalCollected} isCurrency />
+        <StatCard
+          title="Total Collected"
+          value={data.totalCollected}
+          isCurrency
+          variant="success"
+        />
         <StatCard title="Active Agreements" value={data.agreementsKept} />
-        <StatCard title="Active Cases" value={data.legalCasesCount} />
+        <StatCard
+          title="Active Cases"
+          value={data.legalCasesCount}
+          variant={data.legalCasesCount > 0 ? 'urgent' : 'default'}
+        />
       </div>
 
-      {/* Charts */}
       <ClientDashboardCharts
         dailyCollections={data.dailyCollections}
         agreementsKept={data.agreementsKept}
@@ -100,7 +129,6 @@ export default async function ClientDashboard() {
         statusCounts={data.statusCounts}
       />
 
-      {/* Account List & PDF Export */}
       <div className="flex items-center justify-between mt-8 mb-3">
         <h2 className="text-xl font-semibold">Your Accounts</h2>
         <a
@@ -112,56 +140,44 @@ export default async function ClientDashboard() {
         </a>
       </div>
 
-      <div className="max-h-125 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-            <tr>
-              <th className="px-4 py-3">Debtor Name</th>
-              <th className="px-4 py-3">Account #</th>
-              <th className="px-4 py-3">Balance</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Legal Status</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {data.accounts.map((acc: any) => (
-              <tr key={acc.id} className="bg-white dark:bg-gray-900">
-                <td className="px-4 py-3">{acc.debtorName || 'Unknown'}</td>
-                <td className="px-4 py-3">{acc.accountNumber}</td>
-                <td className="px-4 py-3">${acc.currentBalance?.toLocaleString()}</td>
-                <td className="px-4 py-3">{acc.status}</td>
-                <td className="px-4 py-3">{acc.legalStatus || '—'}</td>
-                <td className="px-4 py-3">
-                  <a href={`/crm/accounts/${acc.id}`} className="text-blue-600 hover:underline">
-                    View
-                  </a>
-                </td>
+      {data.accounts.length === 0 ? (
+        <EmptyState
+          icon="📋"
+          title="No accounts yet"
+          description="No accounts have been assigned to your portfolio."
+        />
+      ) : (
+        <div className="max-h-125 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+              <tr>
+                <th className="px-4 py-3">Debtor Name</th>
+                <th className="px-4 py-3">Account #</th>
+                <th className="px-4 py-3">Balance</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Legal Status</th>
+                <th className="px-4 py-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  isCurrency,
-}: {
-  title: string
-  value: number
-  isCurrency?: boolean
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-      <p className="text-2xl font-bold mt-1">
-        {isCurrency ? '$' : ''}
-        {value.toLocaleString()}
-      </p>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {data.accounts.map((acc: any) => (
+                <tr key={acc.id} className="bg-white dark:bg-gray-900">
+                  <td className="px-4 py-3">{acc.debtorName || 'Unknown'}</td>
+                  <td className="px-4 py-3">{acc.accountNumber}</td>
+                  <td className="px-4 py-3">${acc.currentBalance?.toLocaleString()}</td>
+                  <td className="px-4 py-3">{acc.status}</td>
+                  <td className="px-4 py-3">{acc.legalStatus || '—'}</td>
+                  <td className="px-4 py-3">
+                    <a href={`/crm/accounts/${acc.id}`} className="text-blue-600 hover:underline">
+                      View
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

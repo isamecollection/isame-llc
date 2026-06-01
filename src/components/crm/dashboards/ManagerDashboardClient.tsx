@@ -1,5 +1,7 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { StatCard } from '@/components/crm/StatCard'
+import { Skeleton } from '@/components/crm/Skeleton'
 
 type ClientStats = {
   totalAccounts: number
@@ -27,13 +29,11 @@ export default function ManagerDashboardClient({ clients }: { clients: any[] }) 
     setLoading(false)
   }, [])
 
-  // Fetch stats on initial load
   useEffect(() => {
     if (selectedClientId) {
       fetchStats(selectedClientId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedClientId, fetchStats])
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const clientId = e.target.value
@@ -61,15 +61,31 @@ export default function ManagerDashboardClient({ clients }: { clients: any[] }) 
         </select>
       </div>
 
-      {loading && <p className="text-gray-500">Loading stats…</p>}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-2"
+            >
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-8 w-1/3" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {stats && !loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard title="Total Accounts" value={stats.totalAccounts} />
           <StatCard title="Total Collectable" value={stats.totalCollectable} isCurrency />
           <StatCard title="Outstanding" value={stats.totalOutstanding} isCurrency />
-          <StatCard title="Collected" value={stats.totalCollected} isCurrency />
-          <StatCard title="Broken Promises" value={stats.brokenCount} highlight />
+          <StatCard title="Collected" value={stats.totalCollected} isCurrency variant="success" />
+          <StatCard
+            title="Broken Promises"
+            value={stats.brokenCount}
+            variant={stats.brokenCount > 0 ? 'urgent' : 'default'}
+          />
           <StatCard title="Active with Payments" value={stats.activeWithPayments} />
         </div>
       )}
@@ -77,28 +93,6 @@ export default function ManagerDashboardClient({ clients }: { clients: any[] }) 
       {!stats && !loading && (
         <p className="text-gray-500 dark:text-gray-400">Select a client to view stats.</p>
       )}
-    </div>
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  isCurrency,
-  highlight,
-}: {
-  title: string
-  value: number
-  isCurrency?: boolean
-  highlight?: boolean
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
-      <p className={`text-2xl font-bold mt-1 ${highlight ? 'text-red-600' : ''}`}>
-        {isCurrency ? '$' : ''}
-        {value.toLocaleString()}
-      </p>
     </div>
   )
 }

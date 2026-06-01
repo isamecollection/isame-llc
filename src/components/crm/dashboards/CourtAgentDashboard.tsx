@@ -2,6 +2,7 @@ import { getPayload } from '@/payload'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import { CourtAgentActions } from '@/components/crm/CourtAgentActions'
+import { EmptyState } from '@/components/crm/EmptyState'
 
 async function getCourtAgentData() {
   const payload = await getPayload()
@@ -9,7 +10,6 @@ async function getCourtAgentData() {
   const { user } = await payload.auth({ headers: headersList })
   if (!user) return null
 
-  // Active legal cases
   const activeCases = await payload.find({
     collection: 'legal-cases',
     where: {
@@ -20,7 +20,6 @@ async function getCourtAgentData() {
     depth: 2,
   })
 
-  // Accounts assigned to this court agent
   const assignedAccounts = await payload.find({
     collection: 'accounts',
     where: {
@@ -33,7 +32,6 @@ async function getCourtAgentData() {
     depth: 1,
   })
 
-  // Process servers for assignment
   const processServers = await payload.find({
     collection: 'users',
     where: { roles: { contains: 'process-server' } },
@@ -53,7 +51,20 @@ export default async function CourtAgentDashboard() {
 
   const { activeCases, assignedAccounts, processServers } = data
 
-  // Calculate upcoming hearings
+  // Full empty state
+  if (assignedAccounts.length === 0 && activeCases.length === 0) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Court Agent Dashboard</h1>
+        <EmptyState
+          icon="⚖️"
+          title="No cases assigned yet"
+          description="Accounts and legal cases will appear here once a Claims Officer assigns them to you."
+        />
+      </div>
+    )
+  }
+
   const now = new Date()
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -65,11 +76,9 @@ export default async function CourtAgentDashboard() {
     const events = (c.courtEvents || [])
       .filter((ev: any) => new Date(ev.eventDate) > now)
       .sort((a: any, b: any) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
-
     if (events.length > 0) {
       const nextEvent = events[0]
       const eventDate = new Date(nextEvent.eventDate)
-
       if (eventDate <= tomorrow) {
         urgentHearings.push({ ...c, nextEvent })
       } else if (eventDate <= nextWeek) {
@@ -84,36 +93,16 @@ export default async function CourtAgentDashboard() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Assigned Accounts
-          </h3>
-          <p className="text-3xl font-bold mt-1">{assignedAccounts.length}</p>
-        </div>
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Cases</h3>
-          <p className="text-3xl font-bold mt-1">{activeCases.length}</p>
-        </div>
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-red-500 dark:text-red-400">
-            Urgent (Today/Tomorrow)
-          </h3>
-          <p className="text-3xl font-bold mt-1 text-red-600 dark:text-red-400">
-            {urgentHearings.length}
-          </p>
-        </div>
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-yellow-600 dark:text-yellow-400">This Week</h3>
-          <p className="text-3xl font-bold mt-1 text-yellow-700 dark:text-yellow-300">
-            {upcomingHearings.length}
-          </p>
-        </div>
+        <StatCard title="Assigned Accounts" value={assignedAccounts.length} />
+        <StatCard title="Active Cases" value={activeCases.length} />
+        <StatCard title="Urgent (Today/Tomorrow)" value={urgentHearings.length} urgent />
+        <StatCard title="This Week" value={upcomingHearings.length} warning />
       </div>
 
-      {/* Urgent Hearings Alert */}
+      {/* Urgent Hearings */}
       {urgentHearings.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-xl p-5 mb-6">
-          <h2 className="text-lg font-bold text-red-700 dark:text-red-300 mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-red-700 dark:text-red-300 mb-3">
             🔴 Urgent Court Dates
           </h2>
           <div className="space-y-2">
@@ -154,7 +143,7 @@ export default async function CourtAgentDashboard() {
       {/* Upcoming This Week */}
       {upcomingHearings.length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-5 mb-6">
-          <h2 className="text-lg font-bold text-yellow-700 dark:text-yellow-300 mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-bold text-yellow-700 dark:text-yellow-300 mb-3">
             🟡 Upcoming This Week
           </h2>
           <div className="space-y-2">
@@ -188,16 +177,20 @@ export default async function CourtAgentDashboard() {
         </div>
       )}
 
-      {/* Assigned Accounts with Actions */}
+      {/* Assigned Accounts */}
       <h2 className="text-xl font-semibold mb-3">📋 Assigned Accounts</h2>
       {assignedAccounts.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400 mb-8">No accounts assigned yet.</p>
+        <EmptyState
+          icon="📋"
+          title="No accounts assigned yet"
+          description="Accounts will appear here once a Claims Officer assigns them to you."
+        />
       ) : (
         <div className="space-y-4 mb-8">
           {assignedAccounts.map((account: any) => (
             <div
               key={account.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm"
+              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
@@ -207,16 +200,11 @@ export default async function CourtAgentDashboard() {
                     </h3>
                     <span className="text-xs text-gray-500">#{account.accountNumber}</span>
                     <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        account.legalStatus === 'in_court'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-purple-100 text-purple-700'
-                      }`}
+                      className={`text-xs px-2 py-0.5 rounded-full ${account.legalStatus === 'in_court' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}
                     >
                       {account.legalStatus?.replace('_', ' ')}
                     </span>
                   </div>
-
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3">
                     <div>
                       <span className="font-medium">Balance:</span> $
@@ -249,7 +237,6 @@ export default async function CourtAgentDashboard() {
                       </div>
                     )}
                   </div>
-
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">📍</span>{' '}
                     {[account.street, account.townCity, account.district]
@@ -257,8 +244,7 @@ export default async function CourtAgentDashboard() {
                       .join(', ')}
                   </div>
                 </div>
-
-                <div className="flex flex-col gap-2 min-w-55">
+                <div className="flex flex-col gap-2 min-w-62.5">
                   <CourtAgentActions accountId={account.id} processServers={processServers} />
                   <Link
                     href={`/crm/accounts/${account.id}`}
@@ -276,7 +262,11 @@ export default async function CourtAgentDashboard() {
       {/* Active Legal Cases Grid */}
       <h2 className="text-xl font-semibold mb-3">⚖️ Active Legal Cases</h2>
       {activeCases.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400">No active legal cases.</p>
+        <EmptyState
+          icon="⚖️"
+          title="No active legal cases"
+          description="Legal cases will appear here once they are filed."
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {activeCases.map((c: any) => {
@@ -287,13 +277,11 @@ export default async function CourtAgentDashboard() {
                   new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime(),
               )
             const nextEvent = upcomingEvents[0] || null
-
             const daysUntil = nextEvent
               ? Math.ceil(
                   (new Date(nextEvent.eventDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
                 )
               : null
-
             return (
               <div
                 key={c.id}
@@ -309,20 +297,11 @@ export default async function CourtAgentDashboard() {
                     </p>
                   </div>
                   <span
-                    className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      c.status === 'new' || c.status === 'filed'
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
-                        : c.status === 'served'
-                          ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
-                          : c.status === 'judgment'
-                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                    }`}
+                    className={`text-xs px-2 py-1 rounded-full font-medium ${c.status === 'new' || c.status === 'filed' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : c.status === 'served' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : c.status === 'judgment' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
                   >
                     {c.status?.replace('_', ' ')}
                   </span>
                 </div>
-
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-3">
                   {c.caseNumber && (
                     <p>
@@ -341,16 +320,9 @@ export default async function CourtAgentDashboard() {
                     </p>
                   )}
                 </div>
-
                 {nextEvent ? (
                   <div
-                    className={`rounded-lg p-3 mb-3 ${
-                      daysUntil !== null && daysUntil <= 1
-                        ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
-                        : daysUntil !== null && daysUntil <= 3
-                          ? 'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800'
-                          : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800'
-                    }`}
+                    className={`rounded-lg p-3 mb-3 ${daysUntil !== null && daysUntil <= 1 ? 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800' : daysUntil !== null && daysUntil <= 3 ? 'bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-800' : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800'}`}
                   >
                     <p className="text-xs font-semibold uppercase mb-1">
                       {daysUntil !== null && daysUntil <= 1
@@ -382,7 +354,6 @@ export default async function CourtAgentDashboard() {
                     <p className="text-sm text-gray-500">No upcoming events scheduled</p>
                   </div>
                 )}
-
                 <Link
                   href={`/crm/accounts/${c.account?.id}`}
                   className="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline font-medium"
@@ -394,6 +365,35 @@ export default async function CourtAgentDashboard() {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+function StatCard({
+  title,
+  value,
+  urgent,
+  warning,
+}: {
+  title: string
+  value: number
+  urgent?: boolean
+  warning?: boolean
+}) {
+  return (
+    <div
+      className={`rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border ${urgent ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : warning ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}
+    >
+      <h3
+        className={`text-sm font-medium ${urgent ? 'text-red-500 dark:text-red-400' : warning ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-500 dark:text-gray-400'}`}
+      >
+        {title}
+      </h3>
+      <p
+        className={`text-3xl font-bold mt-1 ${urgent ? 'text-red-600 dark:text-red-400' : warning ? 'text-yellow-700 dark:text-yellow-300' : ''}`}
+      >
+        {value}
+      </p>
     </div>
   )
 }

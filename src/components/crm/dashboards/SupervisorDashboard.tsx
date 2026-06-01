@@ -8,12 +8,12 @@ export default async function SupervisorDashboard() {
   const { user } = await payload.auth({ headers: headersList })
   if (!user) return <p className="text-gray-500">Not authorized</p>
 
-  // Get team members (collectors whose supervisor is the current user)
   const team = await payload.find({
     collection: 'users',
     where: {
       and: [{ supervisor: { equals: user.id } }, { roles: { contains: 'collector' } }],
     },
+    limit: 9999,
   })
 
   return (
