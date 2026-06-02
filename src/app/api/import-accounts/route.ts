@@ -33,13 +33,11 @@ function parseCSVLine(line: string): string[] {
 
 export async function POST(request: Request) {
   const { csv, clientId } = await request.json()
-
   if (!csv || !clientId) {
     return NextResponse.json({ message: 'Missing CSV data or client ID' }, { status: 400 })
   }
 
   const payload = await getPayload()
-
   let client
   try {
     client = await payload.findByID({ collection: 'clients', id: clientId })
@@ -50,7 +48,6 @@ export async function POST(request: Request) {
 
   const normalizedCsv = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const lines = normalizedCsv.trim().split('\n')
-
   if (lines.length < 2) {
     return NextResponse.json(
       { message: 'CSV must have header and at least one row' },
@@ -84,7 +81,6 @@ export async function POST(request: Request) {
         loanNo = `AUTO-${custName}-${i + 1}`
       }
       const debtorName = record['Customer Name']?.trim() || ''
-
       if (!debtorName && !loanNo) continue
 
       let street = record['Street']?.trim() || ''
@@ -92,13 +88,13 @@ export async function POST(request: Request) {
       let district = record['District']?.trim() || ''
 
       if (!street && !townCity && record['Address']) {
-        const addressParts = record['Address']
+        const parts = record['Address']
           .split(',')
           .map((s: string) => s.trim())
           .filter((s: string) => s.length > 0)
-        street = addressParts[0] || ''
-        townCity = addressParts[1] || ''
-        district = addressParts[2] || ''
+        street = parts[0] || ''
+        townCity = parts[1] || ''
+        district = parts[2] || ''
       }
 
       const addressRaw = [street, townCity, district].filter((s) => s.length > 0).join(', ')
@@ -114,29 +110,27 @@ export async function POST(request: Request) {
       const suitNo = record['Suit No.']?.trim() || ''
       const statusWithIsame = record['STATUS W/ISAME']?.trim() || ''
 
-      // ── NEW: No auto court charges ──
+      // ── NEW CALCULATION ──
+      // Amount to collect = Initial - what debtor already paid
+      // 20% fee is on the amount to collect
+      // Total Collectable = Amount to Collect + 20% Fee
+      // No auto court charges
+      const amountToCollect = initialAccount - paymentsReceived
+      const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
+      const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
+      const currentBalance = totalCollectable
       const summonsAmount = 0
       const courtCharge = 0
-      const fee20Percent = Math.round(initialAccount * 0.2 * 100) / 100
-      const totalCollectable = Math.round((initialAccount + fee20Percent) * 100) / 100
-      const currentBalance = Math.max(
-        0,
-        Math.round((totalCollectable - paymentsReceived) * 100) / 100,
-      )
 
       // Determine account status
       let status: 'active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed' = 'active'
       if (statusWithIsame.toUpperCase() === 'PAID') {
-        // Only mark as paid if balance is actually 0
-        status = currentBalance <= 0 ? 'paid' : 'active'
-      } else if (paymentsReceived >= totalCollectable) {
-        status = 'settled'
+        status = 'paid'
       }
 
-      // Determine legalStatus based on Method
+      // Determine legalStatus
       let legalStatus: 'none' | 'pending_review' | 'assigned' | 'in_court' | 'closed' = 'none'
       const methodLower = method.toLowerCase()
-
       if (methodLower.includes('court')) {
         legalStatus = 'in_court'
         status = 'legal'
@@ -145,8 +139,6 @@ export async function POST(request: Request) {
         status = 'legal'
       } else if (methodLower.includes('served on') || methodLower.includes('served')) {
         legalStatus = 'assigned'
-      } else if (methodLower.includes('agreement') || methodLower.includes('payment')) {
-        legalStatus = 'none'
       } else if (
         methodLower.includes('adjutant') ||
         methodLower.includes('supervisor') ||
@@ -237,20 +229,6 @@ export async function POST(request: Request) {
         })
       }
 
-      if (paymentsReceived > 0 && accountId) {
-        await payload.create({
-          collection: 'payments',
-          data: {
-            account: accountId,
-            amount: paymentsReceived,
-            method: 'check',
-            status: 'completed',
-            date: new Date().toISOString().split('T')[0],
-          },
-          overrideAccess: true,
-        })
-      }
-
       if (comment && accountId) {
         await payload.create({
           collection: 'notes',
@@ -272,7 +250,7 @@ export async function POST(request: Request) {
               status: 'filed',
               caseNumber: suitNo || courtReceiptNo || undefined,
               court: lodge || undefined,
-              reason: `Imported from CSV. Method: ${method}.`,
+              reason: `Imported from CSV.`,
             },
             overrideAccess: true,
           })

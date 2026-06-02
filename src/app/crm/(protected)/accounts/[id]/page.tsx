@@ -113,7 +113,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         label: 'Payments',
         content: (
           <>
-            <PaymentHistory payments={payments.docs} />
+            <PaymentHistory
+              payments={payments.docs}
+              accountBalance={account.currentBalance ?? undefined}
+            />
             <ScheduledPaymentsSection accountId={account.id} />
           </>
         ),

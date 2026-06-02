@@ -6,8 +6,8 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
   const [debtorName, setDebtorName] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [ssn, setSsn] = useState('')
-  const [originalBalance, setOriginalBalance] = useState('')
-  const [currentBalance, setCurrentBalance] = useState('')
+  const [initialAccount, setInitialAccount] = useState('')
+  const [paymentsReceived, setPaymentsReceived] = useState('')
   const [status, setStatus] = useState('active')
   const [clientId, setClientId] = useState('')
   const [phone, setPhone] = useState('')
@@ -16,8 +16,9 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
   const [employer, setEmployer] = useState('')
   const [workPhone, setWorkPhone] = useState('')
   const [homePhone, setHomePhone] = useState('')
+  const [method, setMethod] = useState('')
+  const [statusWithIsame, setStatusWithIsame] = useState('')
 
-  // References
   const [references, setReferences] = useState<
     { name: string; phone: string; relationship: string }[]
   >([])
@@ -36,11 +37,17 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
     setReferences(references.filter((_, i) => i !== index))
   }
 
+  // Calculate preview
+  const initial = parseFloat(initialAccount) || 0
+  const paid = parseFloat(paymentsReceived) || 0
+  const amountToCollect = initial - paid
+  const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
+  const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
 
-    // 1. Create the account
     const res = await fetch('/api/accounts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,8 +55,15 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
         debtorName,
         accountNumber: accountNumber || undefined,
         ssn: ssn || undefined,
-        originalBalance: parseFloat(originalBalance) || 0,
-        currentBalance: parseFloat(currentBalance) || 0,
+        // Financial fields - calculated
+        initialAccount: initial,
+        paymentsReceived: paid,
+        fee20Percent,
+        totalCollectable,
+        currentBalance: totalCollectable,
+        originalBalance: initial,
+        summonsAmount: 0,
+        courtCharge: 0,
         status,
         client: clientId || undefined,
         phone: phone || undefined,
@@ -58,6 +72,8 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
         employer: employer || undefined,
         workPhone: workPhone || undefined,
         homePhone: homePhone || undefined,
+        method: method || undefined,
+        statusWithIsame: statusWithIsame || undefined,
       }),
     })
 
@@ -70,7 +86,6 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
     const account = await res.json()
     const accountId = account.doc.id
 
-    // 2. Create references
     for (const ref of references) {
       await fetch('/api/debtor-references', {
         method: 'POST',
@@ -111,20 +126,28 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
           onChange={(e) => setSsn(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
         />
-        <input
-          placeholder="Original Balance"
-          type="number"
-          value={originalBalance}
-          onChange={(e) => setOriginalBalance(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
-        <input
-          placeholder="Current Balance"
-          type="number"
-          value={currentBalance}
-          onChange={(e) => setCurrentBalance(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">
+            Initial Account $ (Original Debt)
+          </label>
+          <input
+            type="number"
+            value={initialAccount}
+            onChange={(e) => setInitialAccount(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-0.5">
+            Payments Received $ (Before Collections)
+          </label>
+          <input
+            type="number"
+            value={paymentsReceived}
+            onChange={(e) => setPaymentsReceived(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+        </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -180,6 +203,18 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
           onChange={(e) => setHomePhone(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
         />
+        <input
+          placeholder="Method"
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+        />
+        <input
+          placeholder="Status w/ Isame"
+          value={statusWithIsame}
+          onChange={(e) => setStatusWithIsame(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+        />
         <textarea
           placeholder="Address"
           value={address}
@@ -188,7 +223,18 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
         />
       </div>
 
-      {/* References section */}
+      {/* Preview Calculation */}
+      {initial > 0 && (
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+          <p className="text-blue-700 dark:text-blue-300">
+            Amount to Collect: <strong>${amountToCollect.toLocaleString()}</strong>
+            &nbsp;|&nbsp; 20% Fee: <strong>${fee20Percent.toLocaleString()}</strong>
+            &nbsp;|&nbsp; Total Collectable: <strong>${totalCollectable.toLocaleString()}</strong>
+          </p>
+        </div>
+      )}
+
+      {/* References */}
       <div>
         <h4 className="font-medium mb-2">References</h4>
         {references.map((ref, idx) => (

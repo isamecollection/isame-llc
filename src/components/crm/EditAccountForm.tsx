@@ -24,7 +24,9 @@ export function EditAccountForm({
   const [homePhone, setHomePhone] = useState(account.homePhone || '')
   const [clientId, setClientId] = useState(account.client?.id || account.client || '')
   const [loanNo, setLoanNo] = useState(account.loanNo || '')
-  const [initialAccount, setInitialAccount] = useState(account.initialAccount || '')
+  const [initialAccount, setInitialAccount] = useState(
+    account.initialAccount || account.originalBalance || '',
+  )
   const [paymentsReceived, setPaymentsReceived] = useState(account.paymentsReceived || '')
   const [method, setMethod] = useState(account.method || '')
   const [statusWithIsame, setStatusWithIsame] = useState(account.statusWithIsame || '')
@@ -39,7 +41,7 @@ export function EditAccountForm({
   const { showToast } = useToast()
 
   const isCollector = userRole === 'collector'
-  const canManageClient = !isCollector // Only non-collectors can change client
+  const canManageClient = !isCollector
 
   useEffect(() => {
     async function loadRefs() {
@@ -83,11 +85,15 @@ export function EditAccountForm({
     e.preventDefault()
     setSubmitting(true)
 
+    // Calculate: Amount to Collect = Initial - Paid
+    // 20% Fee on Amount to Collect
+    // Total Collectable = Amount to Collect + Fee
     const initial = parseFloat(initialAccount) || 0
-    const fee20Percent = Math.round(initial * 0.2 * 100) / 100
-    const totalCollectable = Math.round((initial + fee20Percent) * 100) / 100
     const paid = parseFloat(paymentsReceived) || 0
-    const currentBalance = Math.max(0, Math.round((totalCollectable - paid) * 100) / 100)
+    const amountToCollect = initial - paid
+    const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
+    const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
+    const currentBalance = totalCollectable
 
     const body: any = {
       debtorName,
@@ -102,17 +108,18 @@ export function EditAccountForm({
       workPhone: workPhone || undefined,
       homePhone: homePhone || undefined,
       loanNo: loanNo || undefined,
-      initialAccount: initial || undefined,
-      paymentsReceived: paid || undefined,
+      initialAccount: initial,
+      paymentsReceived: paid,
       method: method || undefined,
       statusWithIsame: statusWithIsame || undefined,
       fee20Percent,
       totalCollectable,
       currentBalance,
       originalBalance: initial,
+      summonsAmount: account.summonsAmount || 0,
+      courtCharge: account.courtCharge || 0,
     }
 
-    // Only non-collectors can update these
     if (canManageClient) {
       body.client = clientId || null
       body.suitNo = suitNo || undefined
@@ -239,22 +246,28 @@ export function EditAccountForm({
             onChange={(e) => setLoanNo(e.target.value)}
             className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
           />
-          <input
-            placeholder="Initial Account $"
-            type="number"
-            step="0.01"
-            value={initialAccount}
-            onChange={(e) => setInitialAccount(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            placeholder="Payments Received $"
-            type="number"
-            step="0.01"
-            value={paymentsReceived}
-            onChange={(e) => setPaymentsReceived(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">Initial Account $</label>
+            <input
+              type="number"
+              step="0.01"
+              value={initialAccount}
+              onChange={(e) => setInitialAccount(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">
+              Payments Received $ (before collections)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={paymentsReceived}
+              onChange={(e) => setPaymentsReceived(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+          </div>
           <input
             placeholder="Method"
             value={method}
@@ -271,11 +284,7 @@ export function EditAccountForm({
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
             disabled={!canManageClient}
-            className={`w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 ${
-              canManageClient
-                ? 'bg-white dark:bg-gray-900'
-                : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 ${canManageClient ? 'bg-white dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
           >
             <option value="">-- no client --</option>
             {clients.map((c: any) => (
@@ -290,6 +299,42 @@ export function EditAccountForm({
             </p>
           )}
         </div>
+        {/* Preview calculation */}
+        {initialAccount && (
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+            <p className="text-blue-700 dark:text-blue-300">
+              Amount to Collect:{' '}
+              <strong>
+                $
+                {(
+                  (parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)
+                ).toLocaleString()}
+              </strong>
+              &nbsp;|&nbsp; 20% Fee:{' '}
+              <strong>
+                $
+                {(
+                  Math.round(
+                    ((parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)) *
+                      0.2 *
+                      100,
+                  ) / 100
+                ).toLocaleString()}
+              </strong>
+              &nbsp;|&nbsp; Total Collectable:{' '}
+              <strong>
+                $
+                {(
+                  Math.round(
+                    ((parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)) *
+                      1.2 *
+                      100,
+                  ) / 100
+                ).toLocaleString()}
+              </strong>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Court & Legal - only for non-collectors */}

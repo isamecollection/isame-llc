@@ -51,11 +51,6 @@ export async function POST(request: NextRequest) {
   const payload = await getPayload()
 
   try {
-    // Get account BEFORE update to capture balance before
-    const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
-    const balanceBefore = accountDoc.currentBalance || 0
-
-    // Create the payment
     const payment = await payload.create({
       collection: 'payments',
       data: {
@@ -76,17 +71,17 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update account balance
+    const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
     const newPaymentsReceived = (accountDoc.paymentsReceived || 0) + parseFloat(amount)
-    const balanceAfter = Math.max(0, balanceBefore - parseFloat(amount))
-    const newStatus = balanceAfter <= 0 ? 'settled' : accountDoc.status
+    const newBalance = Math.max(0, (accountDoc.currentBalance || 0) - parseFloat(amount))
+    const newStatus = newBalance <= 0 ? 'settled' : accountDoc.status
 
     await payload.update({
       collection: 'accounts',
       id: account,
       data: {
         paymentsReceived: newPaymentsReceived,
-        currentBalance: balanceAfter,
+        currentBalance: newBalance,
         status: newStatus,
       },
     })
@@ -97,10 +92,7 @@ export async function POST(request: NextRequest) {
       success: true,
       paymentId: payment.id,
       receiptUrl,
-      balanceBefore,
-      balanceAfter,
-      paymentAmount: parseFloat(amount),
-      newBalance: balanceAfter,
+      newBalance,
       newPaymentsReceived,
     })
   } catch (error: any) {

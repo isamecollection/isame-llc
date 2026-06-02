@@ -1,1 +1,3 @@
 STATUS W/ISAME,Customer Name,Loan No.,Method,Street,City/Town,District,Initial Account,Payment Agreement,Payments Received,Comment,Court Receipt NO.,Lodge,Suit No.
+,John Doe,12345,Court,123 Main Street,Belize City,Belize,5000,,2000,Court filing,,JBW Finance,
+PAID,Jane Smith,12346,Agreement,456 Oak Avenue,Ladyville,Belize,7500,,5000,Payment Agreement,na,JBW Finance,na
