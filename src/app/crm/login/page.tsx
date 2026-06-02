@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { ThemeToggle } from '@/components/ThemeToggle' // 👈 import the toggle
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,7 +30,15 @@ export default function LoginPage() {
         const user = await userRes.json()
         const roles: string[] = user.roles || []
         const crmRoles = roles.filter((r) =>
-          ['collector', 'crm-manager', 'supervisor', 'admin'].includes(r),
+          [
+            'collector',
+            'crm-manager',
+            'supervisor',
+            'admin',
+            'court-agent',
+            'process-server',
+            'claims-officer',
+          ].includes(r),
         )
         const defaultRole = crmRoles.length > 0 ? crmRoles[0] : 'collector'
         document.cookie = `activeRole=${defaultRole}; path=/crm; SameSite=Lax`
@@ -42,19 +50,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-100 to-slate-200 dark:from-gray-900 dark:to-gray-950 px-4 relative">
-      {/* Toggle in the top‑right corner */}
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
 
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Isame Collection</h1>
           <p className="mt-2 text-slate-500 dark:text-slate-400">Sign in to your CRM dashboard</p>
         </div>
 
-        {/* Card */}
         <form
           onSubmit={handleLogin}
           className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-8 space-y-6"
@@ -73,7 +78,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="you@example.com"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </div>
 
@@ -91,14 +96,23 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
-              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
+          </div>
+
+          <div className="text-right">
+            <a
+              href="/crm/forgot-password"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Forgot password?
+            </a>
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors"
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
