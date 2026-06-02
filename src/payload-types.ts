@@ -2118,6 +2118,34 @@ export interface Payment {
   reference?: string | null;
   notes?: string | null;
   date?: string | null;
+  /**
+   * Bank name the transfer came from
+   */
+  bankFrom?: string | null;
+  /**
+   * Account number the transfer came from
+   */
+  accountFrom?: string | null;
+  /**
+   * Name on the sending account
+   */
+  accountFromName?: string | null;
+  /**
+   * Bank name receiving the transfer
+   */
+  bankTo?: string | null;
+  /**
+   * Account number receiving the transfer
+   */
+  accountTo?: string | null;
+  /**
+   * Time the transfer was made
+   */
+  transferTime?: string | null;
+  /**
+   * Photo or screenshot of the transfer receipt
+   */
+  receiptImage?: (string | null) | Media;
   collectedBy?: (string | null) | User;
   updatedAt: string;
   createdAt: string;
@@ -3731,6 +3759,13 @@ export interface PaymentsSelect<T extends boolean = true> {
   reference?: T;
   notes?: T;
   date?: T;
+  bankFrom?: T;
+  accountFrom?: T;
+  accountFromName?: T;
+  bankTo?: T;
+  accountTo?: T;
+  transferTime?: T;
+  receiptImage?: T;
   collectedBy?: T;
   updatedAt?: T;
   createdAt?: T;
