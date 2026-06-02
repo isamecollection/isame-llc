@@ -25,6 +25,12 @@ export const Users: CollectionConfig = {
   fields: [
     { name: 'name', type: 'text' },
     {
+      name: 'avatar',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { description: 'Profile picture' },
+    },
+    {
       name: 'roles',
       type: 'select',
       hasMany: true,

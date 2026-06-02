@@ -127,7 +127,8 @@ export async function POST(request: Request) {
       // Determine account status
       let status: 'active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed' = 'active'
       if (statusWithIsame.toUpperCase() === 'PAID') {
-        status = 'paid'
+        // Only mark as paid if balance is actually 0
+        status = currentBalance <= 0 ? 'paid' : 'active'
       } else if (paymentsReceived >= totalCollectable) {
         status = 'settled'
       }

@@ -9,6 +9,7 @@ import { QuickLogProvider } from '@/components/QuickLogProvider'
 import { QuickLogPopup } from '@/components/QuickLogPopup'
 import { LogoutButton } from '@/components/crm/LogoutButton'
 import { SessionTimeout } from '@/components/crm/SessionTimeout'
+import { OfflineIndicator } from '@/components/crm/OfflineIndicator'
 import Link from 'next/link'
 
 const ROLE_PRIORITY = [
@@ -34,7 +35,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
 
   const roles: string[] = user?.roles ?? []
   const activeRoleCookie = cookieStore.get('activeRole')?.value
-
   const activeRole =
     activeRoleCookie || ROLE_PRIORITY.find((r) => roles.includes(r)) || roles[0] || null
 
@@ -43,11 +43,13 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   const showReports =
     showManagement || showSupervisor || activeRole === 'claims-officer' || activeRole === 'admin'
 
+  const avatarUrl = typeof user.avatar === 'object' && user.avatar ? (user.avatar as any).url : null
+  const initial = user.name?.charAt(0)?.toUpperCase() || '?'
+
   return (
     <RoleProvider initialRole={activeRole} roles={roles}>
       <QuickLogProvider>
         <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
-          {/* Sidebar – desktop */}
           <aside className="hidden lg:flex lg:flex-col w-64 bg-slate-800 dark:bg-slate-950 text-white p-4 pb-10 space-y-2 border-r border-slate-700">
             <h2 className="text-xl font-bold mb-4">CRM</h2>
 
@@ -59,7 +61,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
                 <NavLink href="/crm/users">👥 Users</NavLink>
                 <NavLink href="/crm/clients">🏢 Clients</NavLink>
                 <NavLink href="/crm/import">➕ Add Accounts</NavLink>
-                <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink> {/* ← ADD */}
+                <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink>
               </>
             )}
 
@@ -68,15 +70,28 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
 
             <div className="flex-1" />
 
-            <div className="border-t border-slate-700 pt-4 space-y-3 pb-16">
+            <NavLink href="/crm/profile">👤 My Profile</NavLink>
+
+            <div className="border-t border-slate-700 pt-4 space-y-3">
               <ThemeToggle />
               <RoleSwitcher roles={roles} activeRole={activeRole} />
               <LogoutButton />
-              <p className="text-sm mt-2">{user.name}</p>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    initial
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{user.name || 'User'}</p>
+                  <p className="text-xs text-slate-400">{activeRole}</p>
+                </div>
+              </div>
             </div>
           </aside>
 
-          {/* Mobile bottom nav */}
           <MobileSidebar
             showManagement={showManagement}
             showSupervisor={showSupervisor}
@@ -86,11 +101,11 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             userName={user.name || 'Unknown'}
           />
 
-          {/* Main content - pb-20 for mobile bottom nav clearance */}
           <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 lg:pb-0">{children}</main>
         </div>
 
         <QuickLogPopup />
+        <OfflineIndicator />
         <SessionTimeout />
       </QuickLogProvider>
     </RoleProvider>

@@ -1614,6 +1614,10 @@ export interface Category {
 export interface User {
   id: string;
   name?: string | null;
+  /**
+   * Profile picture
+   */
+  avatar?: (string | null) | Media;
   roles?:
     | (
         | 'admin'
@@ -3616,6 +3620,7 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  avatar?: T;
   roles?: T;
   supervisor?: T;
   clientProfile?: T;
