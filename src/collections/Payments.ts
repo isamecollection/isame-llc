@@ -7,9 +7,19 @@ export const Payments: CollectionConfig = {
   fields: [
     { name: 'account', type: 'relationship', relationTo: 'accounts', required: true },
     { name: 'amount', type: 'number', required: true },
-    { name: 'method', type: 'select', options: ['credit_card', 'ach', 'check', 'cash'] },
+    {
+      name: 'method',
+      type: 'select',
+      options: ['cash', 'check', 'bank_transfer', 'credit_card', 'debit_card', 'online', 'other'],
+    },
     { name: 'status', type: 'select', options: ['pending', 'completed', 'failed', 'refunded'] },
-    { name: 'transactionId', type: 'text' },
+    {
+      name: 'transactionId',
+      type: 'text',
+      admin: { description: 'Check #, Transaction ID, or reference number' },
+    },
+    { name: 'reference', type: 'text', admin: { description: 'Additional reference information' } },
+    { name: 'notes', type: 'textarea' },
     { name: 'date', type: 'date' },
     {
       name: 'collectedBy',

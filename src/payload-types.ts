@@ -2106,9 +2106,17 @@ export interface Payment {
   id: string;
   account: string | Account;
   amount: number;
-  method?: ('credit_card' | 'ach' | 'check' | 'cash') | null;
+  method?: ('cash' | 'check' | 'bank_transfer' | 'credit_card' | 'debit_card' | 'online' | 'other') | null;
   status?: ('pending' | 'completed' | 'failed' | 'refunded') | null;
+  /**
+   * Check #, Transaction ID, or reference number
+   */
   transactionId?: string | null;
+  /**
+   * Additional reference information
+   */
+  reference?: string | null;
+  notes?: string | null;
   date?: string | null;
   collectedBy?: (string | null) | User;
   updatedAt: string;
@@ -3720,6 +3728,8 @@ export interface PaymentsSelect<T extends boolean = true> {
   method?: T;
   status?: T;
   transactionId?: T;
+  reference?: T;
+  notes?: T;
   date?: T;
   collectedBy?: T;
   updatedAt?: T;
