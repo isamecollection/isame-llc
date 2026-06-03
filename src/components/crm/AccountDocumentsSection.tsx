@@ -33,6 +33,12 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
 
     const formData = new FormData()
     formData.append('file', file)
+    formData.append(
+      '_payload',
+      JSON.stringify({
+        alt: description || file.name, // Use description, fallback to filename
+      }),
+    )
 
     const uploadRes = await fetch('/api/media', {
       method: 'POST',
