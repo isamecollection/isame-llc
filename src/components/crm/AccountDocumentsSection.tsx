@@ -25,6 +25,17 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
     fetchDocuments()
   }, [accountId])
 
+  // Helper to get correct URL for any file type
+  const getFileUrl = (doc: any) => {
+    const url = doc.document?.url || ''
+    const mimeType = doc.document?.mimeType || ''
+    const isPDF = mimeType === 'application/pdf' || url.endsWith('.pdf')
+    if (isPDF && url.includes('/image/upload/')) {
+      return url.replace('/image/upload/', '/raw/upload/')
+    }
+    return url
+  }
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) return showToast('Please select a file', 'error')
@@ -36,7 +47,7 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
     formData.append(
       '_payload',
       JSON.stringify({
-        alt: description || file.name, // Use description, fallback to filename
+        alt: description || file.name,
       }),
     )
 
@@ -47,7 +58,8 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
     })
 
     if (!uploadRes.ok) {
-      showToast('Failed to upload file', 'error')
+      const error = await uploadRes.json().catch(() => ({}))
+      showToast(error.errors?.[0]?.message || 'Failed to upload file', 'error')
       setUploading(false)
       return
     }
@@ -130,9 +142,7 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
               <div key={doc.id} className="py-2 flex items-center justify-between">
                 <div>
                   <a
-                    href={doc.document?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/api/documents/download/${doc.id}`}
                     className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
                   >
                     {doc.document?.filename || 'Document'}

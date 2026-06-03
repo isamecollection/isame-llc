@@ -30,16 +30,14 @@ import { Pages } from './collections/Pages'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 
-// CRM collections
 import { Accounts } from './collections/Accounts'
 import { Agreements } from './collections/Agreements'
 import { Payments } from './collections/Payments'
-//import { ScheduledPayments } from './collections/ScheduledPayments'
 
 import { Events } from './collections/Events'
 import { Notes } from './collections/Notes'
 import { CallAttempts } from './collections/CallAttempts'
-import { LegalCases } from './collections/LegalCases' // ✨ NEW
+import { LegalCases } from './collections/LegalCases'
 
 import { Footer } from './Footer/config'
 import { Header } from './Header/config'
@@ -57,16 +55,15 @@ cloudinary.config({
 })
 
 const getStorageURL = ({ public_id, resource_type, format }: any) => {
-  // Only apply quality / format transformations to images
-  const isImage = resource_type === 'image' && format !== 'svg'
+  const type = resource_type === 'raw' ? 'raw' : 'image'
   return cloudinary.url(public_id, {
     secure: true,
-    resource_type: resource_type || 'image', // use the original resource type (e.g., 'raw' for PDFs)
-    transformation: isImage ? [{ quality: 'auto', fetch_format: 'auto' }] : [],
+    resource_type: type,
+    type: 'upload',
+    sign_url: false,
   })
 }
 
-// Temporary inline copy (keep as-is until import issue is resolved)
 const ScheduledPayments = {
   slug: 'scheduled-payments',
   admin: { hidden: true },
@@ -104,11 +101,11 @@ export default buildConfig({
     defaultFromAddress: 'collection@isame.co',
     defaultFromName: 'Isame Collection',
     transportOptions: {
-      host: process.env.MXROUTE_SERVER, // fusion.mxrouting.net
+      host: process.env.MXROUTE_SERVER,
       port: 465,
       secure: true,
       auth: {
-        user: process.env.MXROUTE_USERNAME, // collection@isame.co
+        user: process.env.MXROUTE_USERNAME,
         pass: process.env.MXROUTE_PASSWORD,
       },
     },
@@ -175,7 +172,7 @@ export default buildConfig({
     Events,
     Notes,
     CallAttempts,
-    LegalCases, // ✨ NEW
+    LegalCases,
     Clients,
     DebtorReferences,
     Emails,
@@ -183,7 +180,7 @@ export default buildConfig({
     Templates,
     AccountDocuments,
     ServiceAttempts,
-    AuditLog, // ← ADD THIS
+    AuditLog,
   ],
 
   globals: [Header, Footer, Settings],
@@ -199,10 +196,7 @@ export default buildConfig({
       collections: {
         media: {
           folder: 'media',
-          resourceType: 'image',
-          public_id: ({ originalname }: { originalname: string }) => {
-            return `media/${originalname}`
-          },
+          resourceType: 'auto',
           transformation: [],
           deleteFromCloudinary: true,
           getStorageURL,
