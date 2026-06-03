@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   doc.setFontSize(11)
   doc.text('Isame Credit Collection', 40, 14)
   doc.setFontSize(9)
-  doc.text('Hasy Mejia', 40, 19)
+  doc.text('Hasly Mejia', 40, 19)
   doc.text('hasly.mejia@isame.co | +501 600-6106', 40, 24)
   doc.text('www.isame.co', 40, 29)
 

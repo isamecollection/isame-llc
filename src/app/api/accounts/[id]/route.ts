@@ -1,15 +1,18 @@
 import { getPayload } from '@/payload'
 import { NextResponse } from 'next/server'
 
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const payload = await getPayload()
+  const account = await payload.findByID({ collection: 'accounts', id })
+  return NextResponse.json(account)
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const payload = await getPayload()
   const body = await request.json()
-  const updated = await payload.update({
-    collection: 'accounts',
-    id,
-    data: body,
-  })
+  const updated = await payload.update({ collection: 'accounts', id, data: body })
   return NextResponse.json(updated)
 }
 

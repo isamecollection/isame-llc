@@ -19,6 +19,7 @@ import { ArchiveAccountButton } from '@/components/crm/ArchiveAccountButton'
 import { SendToLegalButton } from '@/components/crm/SendToLegalButton'
 import { ServiceAttemptsSection } from '@/components/crm/ServiceAttemptsSection'
 import { ClientAccountReport } from '@/components/crm/ClientAccountReport'
+import { ContactInfoTab } from '@/components/crm/ContactInfoTab'
 import { headers, cookies } from 'next/headers'
 import { logAudit } from '@/lib/auditLogger'
 
@@ -39,7 +40,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     return <p className="text-gray-500">You must be logged in to view this account.</p>
   }
 
-  // 🔒 Audit: log account view
   await logAudit({
     user,
     action: 'view',
@@ -89,6 +89,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   if (isClient) {
     tabs.push({ label: 'Report', content: <ClientAccountReport accountId={account.id} /> })
   } else if (isLimitedView) {
+    // Process Server gets Contact tab first
+    if (isProcessServer) {
+      tabs.push({ label: 'Contact', content: <ContactInfoTab account={account} /> })
+    }
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
     if (isProcessServer || isCourtAgent || isAdmin) {
@@ -172,7 +176,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div>
-      <AccountHeader account={account} />
+      <AccountHeader
+        account={account}
+        showMerge={hasFullAccess}
+        userRole={activeRole || undefined}
+      />
       <Tabs tabs={tabs} />
       {hasFullAccess && (
         <div className="mt-4">

@@ -10,34 +10,37 @@ export function FilterableAccountsTable({
   baseFilter,
   showAssignment,
   collectors,
+  courtAgents,
+  assignmentType = 'collector',
 }: {
   baseFilter?: any
   showAssignment?: boolean
   collectors?: any[]
+  courtAgents?: any[]
+  assignmentType?: 'collector' | 'court-agent'
 }) {
   const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-
-  // Search filters
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [minBalance, setMinBalance] = useState('')
   const [maxBalance, setMaxBalance] = useState('')
   const [clientId, setClientId] = useState('')
-
-  // Bulk assign state
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [bulkCollector, setBulkCollector] = useState('')
+  const [bulkAssignee, setBulkAssignee] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
-
-  // Bulk archive & delete state
   const [bulkArchiving, setBulkArchiving] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
-
   const [clients, setClients] = useState<any[]>([])
   const { showToast } = useToast()
+
+  const assignees = assignmentType === 'court-agent' ? courtAgents : collectors
+  const assignField = assignmentType === 'court-agent' ? 'assignedCourtAgent' : 'assignedCollector'
+  const headerLabel = assignmentType === 'court-agent' ? 'Court Agent' : 'Collector'
+  const bulkLabel =
+    assignmentType === 'court-agent' ? 'Assign to Court Agent…' : 'Assign to Collector…'
 
   useEffect(() => {
     fetch('/api/clients?sort=name&limit=200')
@@ -48,7 +51,6 @@ export function FilterableAccountsTable({
   const fetchAccounts = async (pageNum = 1) => {
     setLoading(true)
     setPage(pageNum)
-
     const params = new URLSearchParams()
     params.append('sort', '-currentBalance')
     params.append('limit', PAGE_SIZE.toString())
@@ -56,13 +58,11 @@ export function FilterableAccountsTable({
     params.append('depth', '1')
 
     const where: any = { ...baseFilter }
-
     if (search) {
       where.or = [{ debtorName: { contains: search } }, { accountNumber: { contains: search } }]
     }
     if (statusFilter) where.status = { equals: statusFilter }
     if (clientId) where.client = { equals: clientId }
-
     if (minBalance || maxBalance) {
       where.and = where.and || []
       if (minBalance)
@@ -70,14 +70,13 @@ export function FilterableAccountsTable({
       if (maxBalance)
         where.and.push({ currentBalance: { less_than_equal: parseFloat(maxBalance) } })
     }
-
     params.append('where', JSON.stringify(where))
 
     const res = await fetch(`/api/accounts?${params.toString()}`)
     const data = await res.json()
     setAccounts(data.docs || [])
     setTotalPages(data.totalPages || 1)
-    setSelectedIds([]) // reset selections when page changes or search is applied
+    setSelectedIds([])
     setLoading(false)
   }
 
@@ -89,76 +88,57 @@ export function FilterableAccountsTable({
     e.preventDefault()
     fetchAccounts(1)
   }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.length === accounts.length) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(accounts.map((a) => a.id))
-    }
-  }
-
-  const toggleSelect = (id: string) => {
+  const toggleSelectAll = () =>
+    setSelectedIds(selectedIds.length === accounts.length ? [] : accounts.map((a) => a.id))
+  const toggleSelect = (id: string) =>
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
-  }
 
   const handleBulkAssign = async () => {
-    if (!bulkCollector || selectedIds.length === 0) return
+    if (!bulkAssignee || selectedIds.length === 0) return
     setBulkAssigning(true)
     let success = 0
-    let failed = 0
-
     for (const accountId of selectedIds) {
+      const body: any = { [assignField]: bulkAssignee }
+      if (assignmentType === 'court-agent') {
+        body.legalStatus = 'assigned'
+      }
       const res = await fetch(`/api/accounts/${accountId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedCollector: bulkCollector }),
+        body: JSON.stringify(body),
       })
       if (res.ok) success++
-      else failed++
     }
-
-    showToast(`Assigned ${success} account(s).${failed > 0 ? ` ${failed} failed.` : ''}`)
+    showToast(`Assigned ${success} account(s).`)
     setSelectedIds([])
-    setBulkCollector('')
+    setBulkAssignee('')
     setBulkAssigning(false)
     fetchAccounts(page)
   }
 
   const handleBulkArchive = async () => {
-    if (selectedIds.length === 0) return
-    if (!confirm(`Archive ${selectedIds.length} account(s)?`)) return
+    if (selectedIds.length === 0 || !confirm(`Archive ${selectedIds.length} account(s)?`)) return
     setBulkArchiving(true)
-    let success = 0
-    let failed = 0
-    for (const accountId of selectedIds) {
-      const res = await fetch(`/api/accounts/${accountId}`, {
+    for (const id of selectedIds) {
+      await fetch(`/api/accounts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ archived: true }),
       })
-      if (res.ok) success++
-      else failed++
     }
-    showToast(`Archived ${success} account(s).${failed > 0 ? ` ${failed} failed.` : ''}`)
+    showToast(`Archived ${selectedIds.length} account(s).`)
     setSelectedIds([])
     setBulkArchiving(false)
     fetchAccounts(page)
   }
 
   const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return
-    if (!confirm(`Permanently delete ${selectedIds.length} account(s)? This cannot be undone.`))
-      return
+    if (selectedIds.length === 0 || !confirm(`Delete ${selectedIds.length} account(s)?`)) return
     setBulkDeleting(true)
-    let success = 0
-    let failed = 0
-    for (const accountId of selectedIds) {
-      const res = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' })
-      if (res.ok) success++
-      else failed++
+    for (const id of selectedIds) {
+      await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
     }
-    showToast(`Deleted ${success} account(s).${failed > 0 ? ` ${failed} failed.` : ''}`)
+    showToast(`Deleted ${selectedIds.length} account(s).`)
     setSelectedIds([])
     setBulkDeleting(false)
     fetchAccounts(page)
@@ -169,16 +149,13 @@ export function FilterableAccountsTable({
     const maxVisible = 5
     let start = Math.max(1, page - Math.floor(maxVisible / 2))
     let end = Math.min(totalPages, start + maxVisible - 1)
-    if (end - start < maxVisible - 1) {
-      start = Math.max(1, end - maxVisible + 1)
-    }
+    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
     for (let i = start; i <= end; i++) pages.push(i)
     return pages
   }
 
   return (
     <div>
-      {/* Filter bar */}
       <form
         onSubmit={handleSearch}
         className="mb-4 flex flex-wrap gap-3 items-end bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700"
@@ -202,10 +179,9 @@ export function FilterableAccountsTable({
           >
             <option value="">All</option>
             <option value="active">Active</option>
+            <option value="legal">Legal</option>
             <option value="settled">Settled</option>
             <option value="paid">Paid</option>
-            <option value="bankruptcy">Bankruptcy</option>
-            <option value="legal">Legal</option>
             <option value="closed">Closed</option>
           </select>
         </div>
@@ -214,7 +190,7 @@ export function FilterableAccountsTable({
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="w-44 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+            className="w-44 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           >
             <option value="">All Clients</option>
             {clients.map((c: any) => (
@@ -225,23 +201,23 @@ export function FilterableAccountsTable({
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Min Balance</label>
+          <label className="block text-xs text-gray-500 mb-1">Min $</label>
           <input
             type="number"
             placeholder="0"
             value={minBalance}
             onChange={(e) => setMinBalance(e.target.value)}
-            className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+            className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Max Balance</label>
+          <label className="block text-xs text-gray-500 mb-1">Max $</label>
           <input
             type="number"
             placeholder="999999"
             value={maxBalance}
             onChange={(e) => setMaxBalance(e.target.value)}
-            className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+            className="w-28 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           />
         </div>
         <button
@@ -252,53 +228,51 @@ export function FilterableAccountsTable({
         </button>
       </form>
 
-      {/* Bulk actions toolbar */}
       {showAssignment && selectedIds.length > 0 && (
         <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg flex flex-wrap items-center gap-3">
           <span className="text-sm text-blue-800 dark:text-blue-200">
-            {selectedIds.length} account(s) selected
+            {selectedIds.length} selected
           </span>
           <select
-            value={bulkCollector}
-            onChange={(e) => setBulkCollector(e.target.value)}
+            value={bulkAssignee}
+            onChange={(e) => setBulkAssignee(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           >
-            <option value="">Assign to…</option>
-            {collectors?.map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            <option value="">{bulkLabel}</option>
+            {assignees?.map((a: any) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
               </option>
             ))}
           </select>
           <button
             onClick={handleBulkAssign}
-            disabled={!bulkCollector || bulkAssigning}
+            disabled={!bulkAssignee || bulkAssigning}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
           >
-            {bulkAssigning ? 'Assigning…' : 'Assign'}
+            {bulkAssigning ? '...' : 'Assign'}
           </button>
           <button
             onClick={handleBulkArchive}
-            disabled={bulkArchiving || bulkDeleting}
+            disabled={bulkArchiving}
             className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 text-sm"
           >
-            {bulkArchiving ? 'Archiving…' : 'Archive Selected'}
+            Archive
           </button>
           <button
             onClick={handleBulkDelete}
-            disabled={bulkDeleting || bulkArchiving}
+            disabled={bulkDeleting}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
           >
-            {bulkDeleting ? 'Deleting…' : 'Delete Selected'}
+            Delete
           </button>
         </div>
       )}
 
-      {/* Table */}
       {loading ? (
         <p className="text-gray-500">Loading…</p>
       ) : accounts.length === 0 ? (
-        <p className="text-gray-500 dark:text-gray-400">No accounts found.</p>
+        <p className="text-gray-500">No accounts found.</p>
       ) : (
         <>
           <div className="max-h-125 overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -314,13 +288,11 @@ export function FilterableAccountsTable({
                       />
                     </th>
                   )}
-                  <th className="px-4 py-3 font-semibold">Debtor Name</th>
+                  <th className="px-4 py-3 font-semibold">Debtor</th>
                   <th className="px-4 py-3 font-semibold">Account #</th>
                   <th className="px-4 py-3 font-semibold">Client</th>
                   <th className="px-4 py-3 font-semibold">Balance</th>
-                  {showAssignment && (
-                    <th className="px-4 py-3 font-semibold">Assigned Collector</th>
-                  )}
+                  {showAssignment && <th className="px-4 py-3 font-semibold">{headerLabel}</th>}
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold"></th>
                 </tr>
@@ -348,8 +320,9 @@ export function FilterableAccountsTable({
                       <td className="px-4 py-3">
                         <AssigneeCell
                           accountId={account.id}
-                          currentCollectorId={account.assignedCollector as string}
-                          collectors={collectors || []}
+                          currentCollectorId={account[assignField] as string}
+                          collectors={assignees || []}
+                          assignmentType={assignmentType}
                         />
                       </td>
                     )}
@@ -357,7 +330,7 @@ export function FilterableAccountsTable({
                     <td className="px-4 py-3">
                       <Link
                         href={`/crm/accounts/${account.id}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        className="text-blue-600 hover:underline"
                       >
                         View
                       </Link>
@@ -367,8 +340,6 @@ export function FilterableAccountsTable({
               </tbody>
             </table>
           </div>
-
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <button
@@ -376,15 +347,13 @@ export function FilterableAccountsTable({
                 disabled={page === 1}
                 className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-sm disabled:opacity-50"
               >
-                Previous
+                Prev
               </button>
               {getPageNumbers().map((p) => (
                 <button
                   key={p}
                   onClick={() => fetchAccounts(p)}
-                  className={`px-3 py-1 rounded text-sm ${
-                    p === page ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'
-                  }`}
+                  className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}
                 >
                   {p}
                 </button>

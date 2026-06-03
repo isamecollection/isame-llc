@@ -34,7 +34,6 @@ export default async function ProcessServerDashboard() {
     depth: 1,
   })
 
-  // Full empty state
   if (pendingAccounts.totalDocs === 0 && servedAccounts.totalDocs === 0) {
     return (
       <div>
@@ -67,11 +66,7 @@ export default async function ProcessServerDashboard() {
       {/* Pending Service */}
       <h2 className="text-xl font-semibold mb-3">📋 Accounts to Serve</h2>
       {pendingAccounts.docs.length === 0 ? (
-        <EmptyState
-          icon="✅"
-          title="All caught up!"
-          description="No accounts pending service right now. Check back for new assignments."
-        />
+        <EmptyState icon="✅" title="All caught up!" description="No accounts pending service." />
       ) : (
         <div className="space-y-4 mb-8">
           {pendingAccounts.docs.map((account: any) => (
@@ -100,26 +95,13 @@ export default async function ProcessServerDashboard() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <div>
-                      <span className="font-medium">Balance:</span> $
-                      {account.currentBalance?.toLocaleString()}
-                    </div>
-                    {account.suitNo && (
-                      <div>
-                        <span className="font-medium">Suit No:</span> {account.suitNo}
-                      </div>
-                    )}
-                    {account.courtReceiptNo && (
-                      <div>
-                        <span className="font-medium">Court Receipt:</span> {account.courtReceiptNo}
-                      </div>
-                    )}
-                    {account.lodge && (
-                      <div>
-                        <span className="font-medium">Lodge:</span> {account.lodge}
-                      </div>
-                    )}
+                  {/* Only show case details, no financial info */}
+                  <div className="flex flex-wrap gap-3 text-sm text-gray-600 dark:text-gray-400">
+                    {account.phone && <span>📞 {account.phone}</span>}
+                    {account.employer && <span>🏢 {account.employer}</span>}
+                    {account.suitNo && <span>Suit: {account.suitNo}</span>}
+                    {account.courtReceiptNo && <span>Receipt: {account.courtReceiptNo}</span>}
+                    {account.lodge && <span>Lodge: {account.lodge}</span>}
                   </div>
                 </div>
 

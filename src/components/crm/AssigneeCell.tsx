@@ -6,10 +6,12 @@ export function AssigneeCell({
   accountId,
   currentCollectorId,
   collectors,
+  assignmentType = 'collector',
 }: {
   accountId: string
   currentCollectorId: string | { id: string; name: string }
   collectors: any[]
+  assignmentType?: 'collector' | 'court-agent'
 }) {
   const collectorId =
     typeof currentCollectorId === 'object' ? currentCollectorId?.id : currentCollectorId
@@ -20,15 +22,20 @@ export function AssigneeCell({
   const { showToast } = useToast()
 
   const hasChanged = selectedId !== originalId
+  const assignField = assignmentType === 'court-agent' ? 'assignedCourtAgent' : 'assignedCollector'
 
   async function handleSave() {
     if (!hasChanged) return
     setSubmitting(true)
     try {
+      const body: any = { [assignField]: selectedId || null }
+      if (assignmentType === 'court-agent') {
+        body.legalStatus = selectedId ? 'assigned' : 'pending_review'
+      }
       const res = await fetch(`/api/accounts/${accountId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignedCollector: selectedId || null }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         showToast('Assignment saved!')

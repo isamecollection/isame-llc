@@ -14,6 +14,7 @@ export function ServiceAttemptsSection({
   const [outcome, setOutcome] = useState('served')
   const [notes, setNotes] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { showToast } = useToast()
 
@@ -31,6 +32,18 @@ export function ServiceAttemptsSection({
     fetchAttempts()
   }, [accountId])
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null
+    setFile(selectedFile)
+    if (selectedFile) {
+      const reader = new FileReader()
+      reader.onloadend = () => setPreview(reader.result as string)
+      reader.readAsDataURL(selectedFile)
+    } else {
+      setPreview(null)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -39,7 +52,12 @@ export function ServiceAttemptsSection({
     if (file) {
       const formData = new FormData()
       formData.append('file', file)
-      const uploadRes = await fetch('/api/media', { method: 'POST', body: formData })
+      formData.append('_payload', JSON.stringify({ alt: `Service attempt photo` }))
+      const uploadRes = await fetch('/api/media', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
       if (uploadRes.ok) {
         const mediaDoc = await uploadRes.json()
         mediaId = mediaDoc.doc.id
@@ -52,6 +70,7 @@ export function ServiceAttemptsSection({
 
     const res = await fetch('/api/service-attempts', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         account: accountId,
@@ -66,6 +85,7 @@ export function ServiceAttemptsSection({
       showToast('Service attempt logged')
       setNotes('')
       setFile(null)
+      setPreview(null)
       fetchAttempts()
     } else {
       showToast('Failed to log attempt', 'error')
@@ -73,20 +93,18 @@ export function ServiceAttemptsSection({
     setSubmitting(false)
   }
 
-  // Get service status from account
   const serviceStatus = attempts.length > 0 ? attempts[0]?.outcome : null
   const isServed = serviceStatus === 'served'
 
   return (
     <div className="space-y-6">
-      {/* Service Status Banner */}
       {isServed && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 flex items-center gap-3">
           <span className="text-2xl">✅</span>
           <div>
             <p className="font-semibold text-green-700 dark:text-green-300">Summons Served</p>
             <p className="text-sm text-green-600 dark:text-green-400">
-              This account has been served. View details below.
+              This account has been served.
             </p>
           </div>
         </div>
@@ -100,13 +118,13 @@ export function ServiceAttemptsSection({
         </div>
       )}
 
-      {/* Log attempt form - only if not read-only */}
       {!readOnly && (
         <form
           onSubmit={handleSubmit}
           className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4"
         >
           <h4 className="font-semibold">Log Service Attempt</h4>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Outcome
@@ -124,6 +142,7 @@ export function ServiceAttemptsSection({
               <option value="other">Other</option>
             </select>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Notes
@@ -135,18 +154,52 @@ export function ServiceAttemptsSection({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
             />
           </div>
+
+          {/* Camera Button */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Photo (optional)
+              Photo
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900 dark:file:text-blue-200"
-            />
+            <label className="flex flex-col items-center gap-2 cursor-pointer">
+              {preview ? (
+                <div className="relative w-full">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null)
+                      setPreview(null)
+                    }}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full py-8 px-4 bg-blue-50 dark:bg-blue-900/30 border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-xl text-center hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                  <span className="text-4xl block mb-2">📸</span>
+                  <span className="text-blue-700 dark:text-blue-300 font-medium">
+                    Tap to Take Photo
+                  </span>
+                  <span className="text-xs text-blue-500 dark:text-blue-400 block mt-1">
+                    or choose from gallery
+                  </span>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </label>
           </div>
+
           <button
             type="submit"
             disabled={submitting}
@@ -157,7 +210,7 @@ export function ServiceAttemptsSection({
         </form>
       )}
 
-      {/* Service History - visible to all */}
+      {/* Service History */}
       <div>
         <h4 className="font-semibold mb-3">Service History</h4>
         {loading ? (
