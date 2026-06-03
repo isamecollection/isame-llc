@@ -12,6 +12,9 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
   const [clientId, setClientId] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [street, setStreet] = useState('')
+  const [townCity, setTownCity] = useState('')
+  const [district, setDistrict] = useState('')
   const [address, setAddress] = useState('')
   const [employer, setEmployer] = useState('')
   const [workPhone, setWorkPhone] = useState('')
@@ -44,6 +47,10 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
   const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
   const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
 
+  // Determine summons amount based on location (for display only, not auto-charged)
+  const isBelizeCity = townCity.toLowerCase().includes('belize city')
+  const summonsEstimate = isBelizeCity ? 25 : 50
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
@@ -55,7 +62,6 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
         debtorName,
         accountNumber: accountNumber || undefined,
         ssn: ssn || undefined,
-        // Financial fields - calculated
         initialAccount: initial,
         paymentsReceived: paid,
         fee20Percent,
@@ -68,6 +74,9 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
         client: clientId || undefined,
         phone: phone || undefined,
         email: email || undefined,
+        street: street || undefined,
+        townCity: townCity || undefined,
+        district: district || undefined,
         address: address || undefined,
         employer: employer || undefined,
         workPhone: workPhone || undefined,
@@ -106,6 +115,8 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="text-lg font-semibold">Add Single Account</h3>
+
+      {/* Basic Info */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <input
           placeholder="Debtor Name *"
@@ -126,28 +137,6 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
           onChange={(e) => setSsn(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
         />
-        <div>
-          <label className="block text-xs text-gray-500 mb-0.5">
-            Initial Account $ (Original Debt)
-          </label>
-          <input
-            type="number"
-            value={initialAccount}
-            onChange={(e) => setInitialAccount(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-0.5">
-            Payments Received $ (Before Collections)
-          </label>
-          <input
-            type="number"
-            value={paymentsReceived}
-            onChange={(e) => setPaymentsReceived(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-          />
-        </div>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -172,37 +161,124 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
             </option>
           ))}
         </select>
-        <input
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+      </div>
+
+      {/* Address Section */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📍 Address</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input
+            placeholder="Street"
+            value={street}
+            onChange={(e) => setStreet(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="City/Town"
+            value={townCity}
+            onChange={(e) => setTownCity(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="District"
+            value={district}
+            onChange={(e) => setDistrict(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+        </div>
+        <textarea
+          placeholder="Full Address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 mt-2"
         />
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
-        <input
-          placeholder="Employer"
-          value={employer}
-          onChange={(e) => setEmployer(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
-        <input
-          placeholder="Work Phone"
-          value={workPhone}
-          onChange={(e) => setWorkPhone(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
-        <input
-          placeholder="Home Phone"
-          value={homePhone}
-          onChange={(e) => setHomePhone(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
+      </div>
+
+      {/* Financial Section */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">💰 Financial</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">
+              Initial Account $ (Original Debt)
+            </label>
+            <input
+              type="number"
+              value={initialAccount}
+              onChange={(e) => setInitialAccount(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-0.5">
+              Payments Received $ (Before Collections)
+            </label>
+            <input
+              type="number"
+              value={paymentsReceived}
+              onChange={(e) => setPaymentsReceived(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
+        {/* Preview Calculation */}
+        {initial > 0 && (
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+            <p className="text-blue-700 dark:text-blue-300">
+              Amount to Collect: <strong>${amountToCollect.toLocaleString()}</strong>
+              &nbsp;|&nbsp; 20% Fee: <strong>${fee20Percent.toLocaleString()}</strong>
+              &nbsp;|&nbsp; Total Collectable: <strong>${totalCollectable.toLocaleString()}</strong>
+            </p>
+            {townCity && (
+              <p className="text-blue-600 dark:text-blue-400 text-xs mt-1">
+                📍 {townCity} → Summons would be <strong>${summonsEstimate}</strong> if sent to
+                court
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Contact Section */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">📞 Contact</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input
+            placeholder="Phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="Employer"
+            value={employer}
+            onChange={(e) => setEmployer(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="Work Phone"
+            value={workPhone}
+            onChange={(e) => setWorkPhone(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+          <input
+            placeholder="Home Phone"
+            value={homePhone}
+            onChange={(e) => setHomePhone(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          />
+        </div>
+      </div>
+
+      {/* Other Fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input
           placeholder="Method"
           value={method}
@@ -215,24 +291,7 @@ export function AddAccountForm({ clients }: { clients: any[] }) {
           onChange={(e) => setStatusWithIsame(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
         />
-        <textarea
-          placeholder="Address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-        />
       </div>
-
-      {/* Preview Calculation */}
-      {initial > 0 && (
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
-          <p className="text-blue-700 dark:text-blue-300">
-            Amount to Collect: <strong>${amountToCollect.toLocaleString()}</strong>
-            &nbsp;|&nbsp; 20% Fee: <strong>${fee20Percent.toLocaleString()}</strong>
-            &nbsp;|&nbsp; Total Collectable: <strong>${totalCollectable.toLocaleString()}</strong>
-          </p>
-        </div>
-      )}
 
       {/* References */}
       <div>

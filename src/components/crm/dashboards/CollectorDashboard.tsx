@@ -7,7 +7,6 @@ import { StatCard } from '@/components/crm/StatCard'
 async function getCollectorStats() {
   const payload = await getPayload()
   const headersList = await headers()
-  const cookieStore = await cookies()
   const { user } = await payload.auth({ headers: headersList })
 
   if (!user) return null
@@ -24,7 +23,8 @@ async function getCollectorStats() {
   let totalOutstanding = 0
 
   for (const account of assignedAccounts.docs) {
-    totalCollectable += account.totalCollectable || 0
+    // Fallback to currentBalance if totalCollectable is missing
+    totalCollectable += account.totalCollectable || account.currentBalance || 0
     totalOutstanding += account.currentBalance ?? 0
   }
 
@@ -32,18 +32,24 @@ async function getCollectorStats() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
 
-  const paymentsThisMonth = await payload.find({
-    collection: 'payments',
-    where: {
-      and: [
-        { status: { equals: 'completed' } },
-        { collectedBy: { equals: user.id } },
-        { date: { greater_than_equal: startOfMonth } },
-        { date: { less_than_equal: endOfMonth } },
-      ],
-    },
-    limit: 9999,
-  })
+  // Get payments for this collector's accounts (by account, not collectedBy)
+  const accountIds = assignedAccounts.docs.map((a) => a.id)
+
+  const paymentsThisMonth =
+    accountIds.length > 0
+      ? await payload.find({
+          collection: 'payments',
+          where: {
+            and: [
+              { status: { equals: 'completed' } },
+              { account: { in: accountIds } },
+              { date: { greater_than_equal: startOfMonth } },
+              { date: { less_than_equal: endOfMonth } },
+            ],
+          },
+          limit: 9999,
+        })
+      : { docs: [] }
 
   const totalCollectedThisMonth = paymentsThisMonth.docs.reduce(
     (sum, p) => sum + (p.amount ?? 0),
@@ -54,16 +60,19 @@ async function getCollectorStats() {
   today.setHours(0, 0, 0, 0)
   const todayISO = today.toISOString()
 
-  const brokenToday = await payload.count({
-    collection: 'scheduled-payments',
-    where: {
-      and: [
-        { status: { equals: 'missed' } },
-        { updatedAt: { greater_than: todayISO } },
-        { account: { in: assignedAccounts.docs.map((a) => a.id) } },
-      ],
-    },
-  })
+  const brokenToday =
+    accountIds.length > 0
+      ? await payload.count({
+          collection: 'scheduled-payments',
+          where: {
+            and: [
+              { status: { equals: 'missed' } },
+              { updatedAt: { greater_than: todayISO } },
+              { account: { in: accountIds } },
+            ],
+          },
+        })
+      : { totalDocs: 0 }
 
   return {
     totalCollectable,
