@@ -14,6 +14,7 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
     setLoading(true)
     const res = await fetch(
       `/api/account-documents?where[account][equals]=${accountId}&sort=-createdAt&depth=1`,
+      { credentials: 'include' },
     )
     const data = await res.json()
     setDocuments(data.docs || [])
@@ -30,11 +31,12 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
 
     setUploading(true)
 
-    // First upload the file to media
     const formData = new FormData()
     formData.append('file', file)
+
     const uploadRes = await fetch('/api/media', {
       method: 'POST',
+      credentials: 'include',
       body: formData,
     })
 
@@ -46,9 +48,9 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
 
     const mediaDoc = await uploadRes.json()
 
-    // Create the account document record
     const docRes = await fetch('/api/account-documents', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         account: accountId,
@@ -70,7 +72,10 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this document?')) return
-    const res = await fetch(`/api/account-documents/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/account-documents/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
     if (res.ok) {
       showToast('Document deleted')
       fetchDocuments()
@@ -81,7 +86,6 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Upload form */}
       <form
         onSubmit={handleUpload}
         className="space-y-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4"
@@ -108,7 +112,6 @@ export function AccountDocumentsSection({ accountId }: { accountId: string }) {
         </button>
       </form>
 
-      {/* Document list */}
       <div>
         <h4 className="font-semibold mb-2">Documents</h4>
         {loading ? (
