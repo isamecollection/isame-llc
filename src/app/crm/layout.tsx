@@ -34,9 +34,10 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   }
 
   const roles: string[] = user?.roles ?? []
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
-  const activeRole =
-    activeRoleCookie || ROLE_PRIORITY.find((r) => roles.includes(r)) || roles[0] || null
+
+  // Always use the highest priority role, ignore cookie if it's wrong
+  const correctRole = ROLE_PRIORITY.find((r) => roles.includes(r)) || roles[0] || 'collector'
+  const activeRole = correctRole
 
   const showManagement = activeRole === 'crm-manager' || activeRole === 'admin'
   const showSupervisor = activeRole === 'supervisor' || activeRole === 'admin'
@@ -52,10 +53,8 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
         <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
           <aside className="hidden lg:flex lg:flex-col w-64 bg-slate-800 dark:bg-slate-950 text-white p-4 pb-10 space-y-2 border-r border-slate-700">
             <h2 className="text-xl font-bold mb-4">CRM</h2>
-
             <NavLink href="/crm/dashboard">📊 Dashboard</NavLink>
             <NavLink href="/crm/accounts">📋 Accounts</NavLink>
-
             {showManagement && (
               <>
                 <NavLink href="/crm/users">👥 Users</NavLink>
@@ -64,14 +63,10 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
                 <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink>
               </>
             )}
-
             {showSupervisor && <NavLink href="/crm/supervisor/users">👥 Manage Team</NavLink>}
             {showReports && <NavLink href="/crm/reports">📊 Reports</NavLink>}
-
             <div className="flex-1" />
-
             <NavLink href="/crm/profile">👤 My Profile</NavLink>
-
             <div className="border-t border-slate-700 pt-4 space-y-3">
               <ThemeToggle />
               <RoleSwitcher roles={roles} activeRole={activeRole} />
@@ -91,7 +86,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
               </div>
             </div>
           </aside>
-
           <MobileSidebar
             showManagement={showManagement}
             showSupervisor={showSupervisor}
@@ -100,10 +94,8 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             activeRole={activeRole}
             userName={user.name || 'Unknown'}
           />
-
           <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 lg:pb-0">{children}</main>
         </div>
-
         <QuickLogPopup />
         <OfflineIndicator />
         <SessionTimeout />
