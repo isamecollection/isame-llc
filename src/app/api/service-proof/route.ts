@@ -3,6 +3,14 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const payload = await getPayload()
+    const { user } = await payload.auth({ headers: request.headers })
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     const accountId = formData.get('accountId') as string
@@ -10,8 +18,6 @@ export async function POST(request: NextRequest) {
     if (!file || !accountId) {
       return NextResponse.json({ error: 'Missing file or accountId' }, { status: 400 })
     }
-
-    const payload = await getPayload()
 
     // Upload to media collection
     const media = await payload.create({
