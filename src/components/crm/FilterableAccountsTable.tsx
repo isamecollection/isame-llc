@@ -12,12 +12,14 @@ export function FilterableAccountsTable({
   collectors,
   courtAgents,
   assignmentType = 'collector',
+  filterClients,
 }: {
   baseFilter?: any
   showAssignment?: boolean
   collectors?: any[]
   courtAgents?: any[]
   assignmentType?: 'collector' | 'court-agent'
+  filterClients?: any[]
 }) {
   const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +35,6 @@ export function FilterableAccountsTable({
   const [bulkAssigning, setBulkAssigning] = useState(false)
   const [bulkArchiving, setBulkArchiving] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const [clients, setClients] = useState<any[]>([])
   const { showToast } = useToast()
 
   const assignees = assignmentType === 'court-agent' ? courtAgents : collectors
@@ -42,11 +43,18 @@ export function FilterableAccountsTable({
   const bulkLabel =
     assignmentType === 'court-agent' ? 'Assign to Court Agent…' : 'Assign to Collector…'
 
+  // Use provided filterClients, or fetch all if not provided
+  const [clients, setClients] = useState<any[]>(filterClients || [])
+
   useEffect(() => {
-    fetch('/api/clients?sort=name&limit=200')
-      .then((r) => r.json())
-      .then((data) => setClients(data.docs || []))
-  }, [])
+    if (filterClients) {
+      setClients(filterClients)
+    } else {
+      fetch('/api/clients?sort=name&limit=200')
+        .then((r) => r.json())
+        .then((data) => setClients(data.docs || []))
+    }
+  }, [filterClients])
 
   const fetchAccounts = async (pageNum = 1) => {
     setLoading(true)
@@ -96,20 +104,16 @@ export function FilterableAccountsTable({
   const handleBulkAssign = async () => {
     if (!bulkAssignee || selectedIds.length === 0) return
     setBulkAssigning(true)
-    let success = 0
     for (const accountId of selectedIds) {
       const body: any = { [assignField]: bulkAssignee }
-      if (assignmentType === 'court-agent') {
-        body.legalStatus = 'assigned'
-      }
-      const res = await fetch(`/api/accounts/${accountId}`, {
+      if (assignmentType === 'court-agent') body.legalStatus = 'assigned'
+      await fetch(`/api/accounts/${accountId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (res.ok) success++
     }
-    showToast(`Assigned ${success} account(s).`)
+    showToast(`Assigned ${selectedIds.length} account(s).`)
     setSelectedIds([])
     setBulkAssignee('')
     setBulkAssigning(false)
@@ -175,7 +179,7 @@ export function FilterableAccountsTable({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-36 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+            className="w-36 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           >
             <option value="">All</option>
             <option value="active">Active</option>

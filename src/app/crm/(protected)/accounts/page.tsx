@@ -34,7 +34,6 @@ export default async function AccountsPage() {
     baseFilter.assignedCollector = { equals: user.id }
   }
 
-  // Fetch collectors for management
   let collectors: any[] = []
   if (isManagement) {
     const res = await payload.find({
@@ -45,7 +44,6 @@ export default async function AccountsPage() {
     collectors = res.docs
   }
 
-  // Fetch court agents for claims officer
   let courtAgents: any[] = []
   if (isClaimsOfficer) {
     const res = await payload.find({
@@ -54,6 +52,35 @@ export default async function AccountsPage() {
       sort: 'name',
     })
     courtAgents = res.docs
+  }
+
+  // Get clients for filter dropdown
+  let clientsForFilter: any[] = []
+
+  if (isManagement || isClaimsOfficer) {
+    const res = await payload.find({ collection: 'clients', sort: 'name', limit: 9999 })
+    clientsForFilter = res.docs
+  } else {
+    // Only show clients from assigned accounts
+    try {
+      const accountsRes = await payload.find({
+        collection: 'accounts',
+        where: baseFilter,
+        limit: 9999,
+        depth: 0,
+      })
+      const clientIds = [...new Set(accountsRes.docs.map((a: any) => a.client).filter(Boolean))]
+      if (clientIds.length > 0) {
+        const res = await payload.find({
+          collection: 'clients',
+          where: { id: { in: clientIds } },
+          sort: 'name',
+        })
+        clientsForFilter = res.docs
+      }
+    } catch (e) {
+      console.error('Error fetching clients for filter:', e)
+    }
   }
 
   return (
@@ -65,6 +92,7 @@ export default async function AccountsPage() {
         collectors={collectors}
         courtAgents={courtAgents}
         assignmentType={isClaimsOfficer ? 'court-agent' : 'collector'}
+        filterClients={clientsForFilter}
       />
     </div>
   )
