@@ -25,22 +25,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing file or accountId' }, { status: 400 })
     }
 
-    // Limit file size to 5MB for serverless compatibility
     const MAX_SIZE = 5 * 1024 * 1024
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        {
-          error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`,
-        },
+        { error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.` },
         { status: 400 },
       )
     }
 
     const media = await payload.create({
       collection: 'media',
-      data: {
-        alt: `Service proof for account ${accountId}`,
-      },
+      data: { alt: `Service proof for account ${accountId}` },
       file: {
         data: Buffer.from(await file.arrayBuffer()),
         mimetype: file.type,
@@ -56,6 +51,18 @@ export async function POST(request: NextRequest) {
         serviceProof: media.id,
         serviceDate: new Date().toISOString(),
         serviceStatus: 'served',
+      },
+    })
+
+    // Create service attempt record so it appears in Service History
+    await payload.create({
+      collection: 'service-attempts',
+      data: {
+        account: accountId,
+        outcome: 'served',
+        photo: media.id,
+        attemptDate: new Date().toISOString(),
+        notes: 'Service proof uploaded via Process Server dashboard',
       },
     })
 
