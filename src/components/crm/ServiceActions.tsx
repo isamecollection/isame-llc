@@ -60,7 +60,7 @@ export function ServiceActions({ accountId }: { accountId: string }) {
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Image too large. Please use a smaller photo (max 5MB).', 'error')
+      showToast(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 5MB.`, 'error')
       return
     }
     setSubmitting(true)
@@ -78,11 +78,11 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         showToast('Proof uploaded and marked as served!')
         setTimeout(() => window.location.reload(), 500)
       } else {
-        const data = await res.json().catch(() => ({}))
+        const data = await res.json().catch(() => ({ error: 'Upload failed' }))
         showToast(data.error || 'Upload failed', 'error')
       }
-    } catch (err) {
-      showToast(handleApiError(err), 'error')
+    } catch (err: any) {
+      showToast(err.message || 'Network error - check your connection', 'error')
     }
     setSubmitting(false)
   }
