@@ -14,6 +14,11 @@ export function ServiceActions({ accountId }: { accountId: string }) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null
+    // Check size immediately on selection
+    if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
+      showToast('Image too large. Please use a smaller photo (max 5MB).', 'error')
+      return
+    }
     setFile(selectedFile)
     if (selectedFile) {
       const reader = new FileReader()
@@ -54,11 +59,14 @@ export function ServiceActions({ accountId }: { accountId: string }) {
       showToast('Please take a photo or select a file', 'error')
       return
     }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image too large. Please use a smaller photo (max 5MB).', 'error')
+      return
+    }
     setSubmitting(true)
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('_payload', JSON.stringify({ alt: `Service proof for account ${accountId}` }))
       formData.append('accountId', accountId)
 
       const res = await fetch('/api/service-proof', {

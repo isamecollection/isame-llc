@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
     const payload = await getPayload()
     const { user } = await payload.auth({ headers: request.headers })
 
@@ -15,15 +14,32 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const accountId = formData.get('accountId') as string
 
+    console.log('Service proof upload:', {
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      accountId,
+    })
+
     if (!file || !accountId) {
       return NextResponse.json({ error: 'Missing file or accountId' }, { status: 400 })
     }
 
-    // Upload to media collection
+    // Limit file size to 5MB for serverless compatibility
+    const MAX_SIZE = 5 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        {
+          error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`,
+        },
+        { status: 400 },
+      )
+    }
+
     const media = await payload.create({
       collection: 'media',
       data: {
-        alt: `Service proof for account ${accountId} - ${new Date().toLocaleDateString()}`,
+        alt: `Service proof for account ${accountId}`,
       },
       file: {
         data: Buffer.from(await file.arrayBuffer()),
@@ -33,7 +49,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update account
     await payload.update({
       collection: 'accounts',
       id: accountId,
@@ -44,7 +59,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update legal case if exists
     const cases = await payload.find({
       collection: 'legal-cases',
       where: { account: { equals: accountId } },
@@ -54,9 +68,7 @@ export async function POST(request: NextRequest) {
       await payload.update({
         collection: 'legal-cases',
         id: cases.docs[0].id,
-        data: {
-          status: 'served',
-        },
+        data: { status: 'served' },
       })
     }
 
