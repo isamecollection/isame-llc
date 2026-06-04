@@ -1,14 +1,22 @@
 'use client'
+
 import { useState } from 'react'
 import { useToast } from '@/components/Toast'
 
-export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
+type Supervisor = {
+  id: string
+  name: string
+}
+
+export function CreateUserForm({ supervisors }: { supervisors: Supervisor[] }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [roles, setRoles] = useState<string[]>(['collector'])
+  const [roles, setRoles] = useState<string[]>([])
   const [supervisorId, setSupervisorId] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const { showToast } = useToast()
 
   const roleOptions = [
     'collector',
@@ -18,37 +26,63 @@ export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
     'process-server',
     'claims-officer',
   ]
-  const { showToast } = useToast()
 
   const toggleRole = (role: string) => {
     setRoles((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setSubmitting(true)
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        roles,
-        supervisor: supervisorId || undefined,
-      }),
-    })
-    if (res.ok) {
-      showToast('User created')
-      window.location.reload()
-    } else {
-      showToast('Failed to create user', 'error')
+
+    if (roles.length === 0) {
+      showToast('Please select at least one role', 'error')
+      return
     }
-    setSubmitting(false)
+
+    try {
+      setSubmitting(true)
+
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          roles,
+          supervisor: supervisorId || undefined,
+        }),
+      })
+
+      if (response.ok) {
+        showToast('User created')
+
+        // Reset form
+        setName('')
+        setEmail('')
+        setPassword('')
+        setRoles([])
+        setSupervisorId('')
+
+        // Optional
+        window.location.reload()
+      } else {
+        const error = await response.text()
+        console.error(error)
+        showToast('Failed to create user', 'error')
+      }
+    } catch (error) {
+      console.error(error)
+      showToast('Something went wrong', 'error')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 mb-8">
+    <form onSubmit={handleSubmit} className="mb-8 space-y-4">
       <h3 className="text-lg font-semibold">Create User</h3>
 
       <input
@@ -56,42 +90,42 @@ export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         required
-        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
       />
 
       <input
-        placeholder="Email"
         type="email"
+        placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required
-        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
       />
 
       <input
-        placeholder="Password"
         type="password"
+        placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         required
-        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
       />
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Roles
         </label>
+
         <div className="flex flex-wrap gap-3">
           {roleOptions.map((role) => (
             <label
               key={role}
-              className="flex items-center gap-1.5 text-sm text-gray-700 dark:text-gray-300"
+              className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
             >
               <input
                 type="checkbox"
                 checked={roles.includes(role)}
                 onChange={() => toggleRole(role)}
-                className="rounded border-gray-300 dark:border-gray-600"
               />
               {role}
             </label>
@@ -100,18 +134,20 @@ export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Supervisor
         </label>
+
         <select
           value={supervisorId}
           onChange={(e) => setSupervisorId(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
         >
           <option value="">-- none --</option>
-          {supervisors.map((s: any) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
+
+          {supervisors.map((supervisor) => (
+            <option key={supervisor.id} value={supervisor.id}>
+              {supervisor.name}
             </option>
           ))}
         </select>
@@ -120,9 +156,9 @@ export function CreateUserForm({ supervisors }: { supervisors: any[] }) {
       <button
         type="submit"
         disabled={submitting}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        className="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
       >
-        {submitting ? 'Creating…' : 'Create User'}
+        {submitting ? 'Creating...' : 'Create User'}
       </button>
     </form>
   )

@@ -22,6 +22,7 @@ import { ClientAccountReport } from '@/components/crm/ClientAccountReport'
 import { ContactInfoTab } from '@/components/crm/ContactInfoTab'
 import { AssignProcessServer } from '@/components/crm/AssignProcessServer'
 import { AffidavitUpload } from '@/components/crm/AffidavitUpload'
+import { TriggerCourtCharges } from '@/components/crm/TriggerCourtCharges'
 import { headers, cookies } from 'next/headers'
 import { logAudit } from '@/lib/auditLogger'
 
@@ -38,9 +39,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   }
 
   const { user } = await payload.auth({ headers: await headers() })
-  if (!user) {
-    return <p className="text-gray-500">You must be logged in to view this account.</p>
-  }
+  if (!user) return <p className="text-gray-500">You must be logged in to view this account.</p>
 
   await logAudit({
     user,
@@ -102,9 +101,8 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   if (isClient) {
     tabs.push({ label: 'Report', content: <ClientAccountReport accountId={account.id} /> })
   } else if (isLimitedView) {
-    if (isProcessServer) {
+    if (isProcessServer)
       tabs.push({ label: 'Contact', content: <ContactInfoTab account={account} /> })
-    }
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
     if (isProcessServer || isCourtAgent || isAdmin) {
@@ -153,6 +151,12 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           <div className="space-y-6">
             <ActionsSection accountId={account.id} currentBalance={account.currentBalance ?? 0} />
             <SendToLegalButton accountId={account.id} />
+            {isManager && (
+              <TriggerCourtCharges
+                accountId={account.id}
+                townCity={account.townCity || undefined}
+              />
+            )}
           </div>
         ),
       },

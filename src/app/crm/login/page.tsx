@@ -2,6 +2,16 @@
 import { useState } from 'react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
+const ROLE_PRIORITY = [
+  'admin',
+  'crm-manager',
+  'supervisor',
+  'claims-officer',
+  'court-agent',
+  'process-server',
+  'collector',
+]
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,18 +39,7 @@ export default function LoginPage() {
       if (userRes.ok) {
         const user = await userRes.json()
         const roles: string[] = user.roles || []
-        const crmRoles = roles.filter((r) =>
-          [
-            'collector',
-            'crm-manager',
-            'supervisor',
-            'admin',
-            'court-agent',
-            'process-server',
-            'claims-officer',
-          ].includes(r),
-        )
-        const defaultRole = crmRoles.length > 0 ? crmRoles[0] : 'collector'
+        const defaultRole = ROLE_PRIORITY.find((r) => roles.includes(r)) || 'collector'
         document.cookie = `activeRole=${defaultRole}; path=/crm; SameSite=Lax`
       }
     } catch {}
@@ -81,7 +80,6 @@ export default function LoginPage() {
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </div>
-
           <div>
             <label
               htmlFor="password"
@@ -99,7 +97,6 @@ export default function LoginPage() {
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </div>
-
           <div className="text-right">
             <a
               href="/crm/forgot-password"
@@ -108,7 +105,6 @@ export default function LoginPage() {
               Forgot password?
             </a>
           </div>
-
           <button
             type="submit"
             disabled={submitting}
@@ -117,7 +113,6 @@ export default function LoginPage() {
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-
         <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
           Secure access · Authorized personnel only
         </p>
