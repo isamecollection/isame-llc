@@ -3,6 +3,51 @@ import { useState, useRef } from 'react'
 import { useToast } from '@/components/Toast'
 import { handleApiError } from '@/lib/errorHandler'
 
+// Compress image before upload
+const compressImage = async (file: File, maxWidth = 1200): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        if (height > maxWidth) {
+          width = (width * maxWidth) / height
+          height = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Compression failed'))
+              return
+            }
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+          },
+          'image/jpeg',
+          0.7,
+        )
+      }
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = reader.result as string
+    }
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function ServiceActions({ accountId }: { accountId: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -14,11 +59,6 @@ export function ServiceActions({ accountId }: { accountId: string }) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null
-    // Check size immediately on selection
-    if (selectedFile && selectedFile.size > 5 * 1024 * 1024) {
-      showToast('Image too large. Please use a smaller photo (max 5MB).', 'error')
-      return
-    }
     setFile(selectedFile)
     if (selectedFile) {
       const reader = new FileReader()
@@ -36,10 +76,7 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceStatus: 'served',
-          serviceDate: serviceDate,
-        }),
+        body: JSON.stringify({ serviceStatus: 'served', serviceDate }),
       })
       if (res.ok) {
         showToast('Marked as served!')
@@ -59,14 +96,17 @@ export function ServiceActions({ accountId }: { accountId: string }) {
       showToast('Please take a photo or select a file', 'error')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast(`Image too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 5MB.`, 'error')
-      return
-    }
     setSubmitting(true)
     try {
+      // Compress if over 1MB
+      let uploadFile = file
+      if (file.size > 1 * 1024 * 1024) {
+        showToast('Compressing image...')
+        uploadFile = await compressImage(file)
+      }
+
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', uploadFile)
       formData.append('accountId', accountId)
 
       const res = await fetch('/api/service-proof', {
@@ -82,7 +122,7 @@ export function ServiceActions({ accountId }: { accountId: string }) {
         showToast(data.error || 'Upload failed', 'error')
       }
     } catch (err: any) {
-      showToast(err.message || 'Network error - check your connection', 'error')
+      showToast(err.message || 'Network error', 'error')
     }
     setSubmitting(false)
   }

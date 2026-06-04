@@ -2,6 +2,48 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '@/components/Toast'
 
+// Compress image before upload
+const compressImage = async (file: File, maxWidth = 1200): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        if (height > maxWidth) {
+          width = (width * maxWidth) / height
+          height = maxWidth
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Compression failed'))
+              return
+            }
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+          },
+          'image/jpeg',
+          0.7,
+        )
+      }
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = reader.result as string
+    }
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function ServiceAttemptsSection({
   accountId,
   readOnly = false,
@@ -22,9 +64,7 @@ export function ServiceAttemptsSection({
     setLoading(true)
     const res = await fetch(
       `/api/service-attempts?where[account][equals]=${accountId}&sort=-attemptDate`,
-      {
-        credentials: 'include',
-      },
+      { credentials: 'include' },
     )
     const data = await res.json()
     setAttempts(data.docs || [])
@@ -53,12 +93,20 @@ export function ServiceAttemptsSection({
 
     let mediaId = null
     if (file) {
+      let uploadFile = file
+      if (file.size > 1 * 1024 * 1024) {
+        showToast('Compressing image...')
+        try {
+          uploadFile = await compressImage(file)
+        } catch {
+          showToast('Failed to compress image', 'error')
+          setSubmitting(false)
+          return
+        }
+      }
       const formData = new FormData()
-      formData.append('file', file)
-      formData.append(
-        '_payload',
-        JSON.stringify({ alt: `Service attempt photo for account ${accountId}` }),
-      )
+      formData.append('file', uploadFile)
+      formData.append('_payload', JSON.stringify({ alt: `Service attempt photo` }))
       const uploadRes = await fetch('/api/media', {
         method: 'POST',
         credentials: 'include',
@@ -115,7 +163,6 @@ export function ServiceAttemptsSection({
           </div>
         </div>
       )}
-
       {!isServed && !readOnly && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
           <p className="text-sm text-yellow-700 dark:text-yellow-300">
@@ -123,14 +170,12 @@ export function ServiceAttemptsSection({
           </p>
         </div>
       )}
-
       {!readOnly && (
         <form
           onSubmit={handleSubmit}
           className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 space-y-4"
         >
           <h4 className="font-semibold">Log Service Attempt</h4>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Outcome
@@ -148,7 +193,6 @@ export function ServiceAttemptsSection({
               <option value="other">Other</option>
             </select>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Notes
@@ -160,7 +204,6 @@ export function ServiceAttemptsSection({
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-y"
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Photo
@@ -204,7 +247,6 @@ export function ServiceAttemptsSection({
               />
             </label>
           </div>
-
           <button
             type="submit"
             disabled={submitting}
@@ -214,7 +256,6 @@ export function ServiceAttemptsSection({
           </button>
         </form>
       )}
-
       <div>
         <h4 className="font-semibold mb-3">Service History</h4>
         {loading ? (
@@ -232,15 +273,7 @@ export function ServiceAttemptsSection({
                   <div>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          a.outcome === 'served'
-                            ? 'bg-green-100 text-green-700'
-                            : a.outcome === 'refused'
-                              ? 'bg-red-100 text-red-700'
-                              : a.outcome === 'moved'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : 'bg-gray-100 text-gray-700'
-                        }`}
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.outcome === 'served' ? 'bg-green-100 text-green-700' : a.outcome === 'refused' ? 'bg-red-100 text-red-700' : a.outcome === 'moved' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`}
                       >
                         {a.outcome?.replace('_', ' ')}
                       </span>
