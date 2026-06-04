@@ -22,6 +22,9 @@ export function ServiceAttemptsSection({
     setLoading(true)
     const res = await fetch(
       `/api/service-attempts?where[account][equals]=${accountId}&sort=-attemptDate`,
+      {
+        credentials: 'include',
+      },
     )
     const data = await res.json()
     setAttempts(data.docs || [])
@@ -52,7 +55,10 @@ export function ServiceAttemptsSection({
     if (file) {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('_payload', JSON.stringify({ alt: `Service attempt photo` }))
+      formData.append(
+        '_payload',
+        JSON.stringify({ alt: `Service attempt photo for account ${accountId}` }),
+      )
       const uploadRes = await fetch('/api/media', {
         method: 'POST',
         credentials: 'include',
@@ -155,7 +161,6 @@ export function ServiceAttemptsSection({
             />
           </div>
 
-          {/* Camera Button */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Photo
@@ -210,7 +215,6 @@ export function ServiceAttemptsSection({
         </form>
       )}
 
-      {/* Service History */}
       <div>
         <h4 className="font-semibold mb-3">Service History</h4>
         {loading ? (

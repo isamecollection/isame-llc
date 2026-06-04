@@ -29,6 +29,7 @@ export function ServiceActions({ accountId }: { accountId: string }) {
     try {
       const res = await fetch(`/api/accounts/${accountId}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceStatus: 'served',
@@ -57,10 +58,12 @@ export function ServiceActions({ accountId }: { accountId: string }) {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('_payload', JSON.stringify({ alt: `Service proof for account ${accountId}` }))
       formData.append('accountId', accountId)
 
       const res = await fetch('/api/service-proof', {
         method: 'POST',
+        credentials: 'include',
         body: formData,
       })
       if (res.ok) {
