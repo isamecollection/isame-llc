@@ -63,7 +63,7 @@ export function ServiceAttemptsSection({
   const fetchAttempts = async () => {
     setLoading(true)
     const res = await fetch(
-      `/api/service-attempts?where[account][equals]=${accountId}&sort=-attemptDate`,
+      `/api/service-attempts?where[account][equals]=${accountId}&sort=-attemptDate&depth=1`,
       { credentials: 'include' },
     )
     const data = await res.json()

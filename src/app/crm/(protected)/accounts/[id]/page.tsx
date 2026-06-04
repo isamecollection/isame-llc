@@ -20,6 +20,7 @@ import { SendToLegalButton } from '@/components/crm/SendToLegalButton'
 import { ServiceAttemptsSection } from '@/components/crm/ServiceAttemptsSection'
 import { ClientAccountReport } from '@/components/crm/ClientAccountReport'
 import { ContactInfoTab } from '@/components/crm/ContactInfoTab'
+import { AssignProcessServer } from '@/components/crm/AssignProcessServer'
 import { headers, cookies } from 'next/headers'
 import { logAudit } from '@/lib/auditLogger'
 
@@ -56,10 +57,22 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const isClaimsOfficer = activeRole === 'claims-officer'
   const isCourtAgent = activeRole === 'court-agent'
   const isAdmin = activeRole === 'admin'
+  const isManager = activeRole === 'crm-manager' || isAdmin
 
   const isLimitedView = isProcessServer || isClaimsOfficer || isCourtAgent
   const canManageLegal = isCourtAgent || isClaimsOfficer || isAdmin
   const hasFullAccess = !isLimitedView && !isClient
+
+  // Fetch process servers for CRM Managers/Admins
+  let processServers: any[] = []
+  if (isManager || isCourtAgent) {
+    const res = await payload.find({
+      collection: 'users',
+      where: { roles: { contains: 'process-server' } },
+      sort: 'name',
+    })
+    processServers = res.docs
+  }
 
   const [agreements, payments, scheduled] = hasFullAccess
     ? await Promise.all([
@@ -89,7 +102,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   if (isClient) {
     tabs.push({ label: 'Report', content: <ClientAccountReport accountId={account.id} /> })
   } else if (isLimitedView) {
-    // Process Server gets Contact tab first
     if (isProcessServer) {
       tabs.push({ label: 'Contact', content: <ContactInfoTab account={account} /> })
     }
@@ -138,7 +150,20 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       { label: 'Calls', content: <CallsSection accountId={account.id} /> },
       { label: 'Notes', content: <NotesSection accountId={account.id} /> },
       { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
-      { label: 'Service', content: <ServiceAttemptsSection accountId={account.id} /> },
+      {
+        label: 'Service',
+        content: (
+          <div className="space-y-6">
+            {(isManager || isCourtAgent) && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <h4 className="font-semibold mb-3">Assign Process Server</h4>
+                <AssignProcessServer accountId={account.id} processServers={processServers} />
+              </div>
+            )}
+            <ServiceAttemptsSection accountId={account.id} />
+          </div>
+        ),
+      },
       {
         label: 'Legal',
         content: (
