@@ -141,6 +141,12 @@ export const Accounts: CollectionConfig = {
       admin: { hidden: true, description: 'Photo proof of served summons' },
     },
     {
+      name: 'affidavitProof',
+      type: 'upload',
+      relationTo: 'media',
+      admin: { hidden: true, description: 'Photo of the signed affidavit of service' },
+    },
+    {
       name: 'archived',
       type: 'checkbox',
       defaultValue: false,

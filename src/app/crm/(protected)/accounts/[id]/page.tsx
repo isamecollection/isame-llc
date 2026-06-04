@@ -21,6 +21,7 @@ import { ServiceAttemptsSection } from '@/components/crm/ServiceAttemptsSection'
 import { ClientAccountReport } from '@/components/crm/ClientAccountReport'
 import { ContactInfoTab } from '@/components/crm/ContactInfoTab'
 import { AssignProcessServer } from '@/components/crm/AssignProcessServer'
+import { AffidavitUpload } from '@/components/crm/AffidavitUpload'
 import { headers, cookies } from 'next/headers'
 import { logAudit } from '@/lib/auditLogger'
 
@@ -63,7 +64,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const canManageLegal = isCourtAgent || isClaimsOfficer || isAdmin
   const hasFullAccess = !isLimitedView && !isClient
 
-  // Fetch process servers for CRM Managers/Admins
   let processServers: any[] = []
   if (isManager || isCourtAgent) {
     const res = await payload.find({
@@ -108,7 +108,17 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
     if (isProcessServer || isCourtAgent || isAdmin) {
-      tabs.push({ label: 'Service', content: <ServiceAttemptsSection accountId={account.id} /> })
+      tabs.push({
+        label: 'Service',
+        content: (
+          <div className="space-y-6">
+            {isProcessServer && (
+              <AffidavitUpload accountId={account.id} currentAffidavit={account.affidavitProof} />
+            )}
+            <ServiceAttemptsSection accountId={account.id} readOnly={!isProcessServer} />
+          </div>
+        ),
+      })
     }
     if (canManageLegal) {
       tabs.push({

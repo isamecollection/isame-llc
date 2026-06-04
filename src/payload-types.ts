@@ -2068,6 +2068,10 @@ export interface Account {
    */
   serviceProof?: (string | null) | Media;
   /**
+   * Photo of the signed affidavit of service
+   */
+  affidavitProof?: (string | null) | Media;
+  /**
    * Archive this account instead of deleting it.
    */
   archived?: boolean | null;
@@ -3719,6 +3723,7 @@ export interface AccountsSelect<T extends boolean = true> {
   serviceStatus?: T;
   serviceDate?: T;
   serviceProof?: T;
+  affidavitProof?: T;
   archived?: T;
   updatedAt?: T;
   createdAt?: T;
