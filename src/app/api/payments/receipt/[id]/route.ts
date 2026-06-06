@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // ── Logo ──
   try {
     const logoUrl =
-      'https://res.cloudinary.com/dwkbus18m/image/upload/v1780403341/media/hwj58ryz38rlqiflp5ha.jpg'
+      'https://res.cloudinary.com/dwkbus18m/image/upload/v1780714954/isame-logo_ztn3vh.png'
     const logoRes = await fetch(logoUrl)
     if (logoRes.ok) {
       const logoBuffer = await logoRes.arrayBuffer()
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     54,
   )
   doc.text(
-    `Time: ${new Date(payment.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
+    `Time: ${new Date(payment.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`,
     105,
     60,
   )
