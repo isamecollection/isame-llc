@@ -39,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── Company Header ──
   doc.setFontSize(16)
-  doc.text('ISAME COLLECTIONS', 42, 20)
+  doc.text('ISAME CREDIT COLLECTION LTD', 42, 20)
   doc.setFontSize(8)
   doc.text('Belize City, Belize | www.isame.co', 42, 27)
   doc.setDrawColor(200)
