@@ -61,7 +61,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             <h2 className="text-xl font-bold mb-4">{ROLE_LABELS[activeRole] || 'CRM'}</h2>
             <NavLink href="/crm/dashboard">📊 Dashboard</NavLink>
             <NavLink href="/crm/accounts">📋 Accounts</NavLink>
-
+            {activeRole === 'admin' && <NavLink href="/crm/settings">⚙️ Settings</NavLink>}
             {showManagement && (
               <>
                 <NavLink href="/crm/users">👥 Users</NavLink>

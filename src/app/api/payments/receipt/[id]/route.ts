@@ -16,6 +16,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
 
+  // Fetch CRM settings for branding
+  let settings: any = null
+  try {
+    const settingsRes = await payload.find({ collection: 'crm-settings', limit: 1 })
+    settings = settingsRes.docs[0]
+  } catch {}
+
+  const receiptSettings = settings?.receipt || {}
+  const companyName = receiptSettings.companyName || 'ISAME CREDIT COLLECTION LTD'
+  const companyAddress = receiptSettings.companyAddress || 'Belize City, Belize'
+  const companyPhone = receiptSettings.companyPhone || ''
+  const companyEmail = receiptSettings.companyEmail || ''
+  const companyWebsite = receiptSettings.companyWebsite || 'www.isame.co'
+  const receiptFooter =
+    receiptSettings.receiptFooter ||
+    'This receipt acknowledges payment received toward the referenced account.'
+  const receiptLogo = receiptSettings.receiptLogo
+
   const account = payment.account as any
   const client = account?.client as any
   const collector = payment.collectedBy as any
@@ -26,22 +44,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const doc = new jsPDF()
 
   // ── Logo ──
-  try {
-    const logoUrl =
-      'https://res.cloudinary.com/dwkbus18m/image/upload/v1780714954/isame-logo_ztn3vh.png'
-    const logoRes = await fetch(logoUrl)
-    if (logoRes.ok) {
-      const logoBuffer = await logoRes.arrayBuffer()
-      const logoBase64 = Buffer.from(logoBuffer).toString('base64')
-      doc.addImage(`data:image/jpeg;base64,${logoBase64}`, 'JPEG', 14, 10, 22, 22)
-    }
-  } catch {}
+  const logoUrl = receiptLogo?.url || null
+  if (logoUrl) {
+    try {
+      const logoRes = await fetch(logoUrl)
+      if (logoRes.ok) {
+        const logoBuffer = await logoRes.arrayBuffer()
+        const logoBase64 = Buffer.from(logoBuffer).toString('base64')
+        const ext = logoUrl.split('.').pop()?.toLowerCase() || 'png'
+        const format = ext === 'jpg' || ext === 'jpeg' ? 'JPEG' : 'PNG'
+        doc.addImage(
+          `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${logoBase64}`,
+          format,
+          14,
+          10,
+          22,
+          22,
+        )
+      }
+    } catch {}
+  }
 
   // ── Company Header ──
   doc.setFontSize(16)
-  doc.text('ISAME CREDIT COLLECTION LTD', 42, 20)
+  doc.text(companyName, 42, 20)
   doc.setFontSize(8)
-  doc.text('Belize City, Belize | www.isame.co', 42, 27)
+  const headerLine = [companyAddress, companyPhone, companyEmail, companyWebsite]
+    .filter(Boolean)
+    .join(' | ')
+  doc.text(headerLine, 42, 27)
   doc.setDrawColor(200)
   doc.line(14, 34, 196, 34)
 
@@ -157,15 +188,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const pageHeight = doc.internal.pageSize.height
   doc.setFontSize(7)
   doc.setTextColor(150)
-  doc.text('ISAME Collections LLC | Belize City, Belize | www.isame.co', 105, pageHeight - 12, {
+  doc.text(`${companyName} | ${companyAddress} | ${companyWebsite}`, 105, pageHeight - 12, {
     align: 'center',
   })
-  doc.text(
-    'This receipt acknowledges payment received toward the referenced account.',
-    105,
-    pageHeight - 8,
-    { align: 'center' },
-  )
+  doc.text(receiptFooter, 105, pageHeight - 8, { align: 'center' })
   doc.text(`Generated: ${new Date().toLocaleString()}`, 105, pageHeight - 4, { align: 'center' })
 
   const pdfBuffer = Buffer.from(doc.output('arraybuffer'))

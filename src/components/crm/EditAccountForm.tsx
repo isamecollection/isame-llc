@@ -35,6 +35,13 @@ export function EditAccountForm({
   const [lodge, setLodge] = useState(account.lodge || '')
   const [legalStatus, setLegalStatus] = useState(account.legalStatus || 'none')
   const [serviceStatus, setServiceStatus] = useState(account.serviceStatus || 'not_assigned')
+  const [customCollectionFeePercent, setCustomCollectionFeePercent] = useState(
+    account.feeOverrides?.customCollectionFeePercent || '',
+  )
+  const [customSummonsFee, setCustomSummonsFee] = useState(
+    account.feeOverrides?.customSummonsFee || '',
+  )
+  const [customCourtFee, setCustomCourtFee] = useState(account.feeOverrides?.customCourtFee || '')
   const [submitting, setSubmitting] = useState(false)
   const [references, setReferences] = useState<any[]>([])
   const [newRef, setNewRef] = useState({ name: '', phone: '', relationship: '' })
@@ -85,9 +92,6 @@ export function EditAccountForm({
     e.preventDefault()
     setSubmitting(true)
 
-    // Calculate: Amount to Collect = Initial - Paid
-    // 20% Fee on Amount to Collect
-    // Total Collectable = Amount to Collect + Fee
     const initial = parseFloat(initialAccount) || 0
     const paid = parseFloat(paymentsReceived) || 0
     const amountToCollect = initial - paid
@@ -118,6 +122,13 @@ export function EditAccountForm({
       originalBalance: initial,
       summonsAmount: account.summonsAmount || 0,
       courtCharge: account.courtCharge || 0,
+      feeOverrides: {
+        customCollectionFeePercent: customCollectionFeePercent
+          ? Number(customCollectionFeePercent)
+          : undefined,
+        customSummonsFee: customSummonsFee ? Number(customSummonsFee) : undefined,
+        customCourtFee: customCourtFee ? Number(customCourtFee) : undefined,
+      },
     }
 
     if (canManageClient) {
@@ -299,7 +310,6 @@ export function EditAccountForm({
             </p>
           )}
         </div>
-        {/* Preview calculation */}
         {initialAccount && (
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
             <p className="text-blue-700 dark:text-blue-300">
@@ -337,7 +347,55 @@ export function EditAccountForm({
         )}
       </div>
 
-      {/* Court & Legal - only for non-collectors */}
+      {/* Fee Overrides */}
+      {canManageClient && (
+        <div>
+          <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">🔧 Fee Overrides</h4>
+          <p className="text-xs text-gray-500 mb-2">
+            Override default fees for this account. Leave empty to use global defaults.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Collection Fee %</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={customCollectionFeePercent}
+                onChange={(e) => setCustomCollectionFeePercent(e.target.value)}
+                placeholder="Use default"
+                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Summons Fee $</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={customSummonsFee}
+                onChange={(e) => setCustomSummonsFee(e.target.value)}
+                placeholder="Use default"
+                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Court Fee $</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={customCourtFee}
+                onChange={(e) => setCustomCourtFee(e.target.value)}
+                placeholder="Use default"
+                className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-900 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Court & Legal */}
       {canManageClient && (
         <div>
           <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Court & Legal</h4>

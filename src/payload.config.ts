@@ -16,6 +16,7 @@ import { AccountDocuments } from './collections/AccountDocuments'
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { ServiceAttempts } from './collections/ServiceAttempts'
 import { AuditLog } from './collections/AuditLog'
+import { CRMSettings } from './collections/CRMSettings'
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -181,6 +182,7 @@ export default buildConfig({
     AccountDocuments,
     ServiceAttempts,
     AuditLog,
+    CRMSettings,
   ],
 
   globals: [Header, Footer, Settings],

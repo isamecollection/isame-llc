@@ -88,6 +88,7 @@ export interface Config {
     'account-documents': AccountDocument;
     'service-attempts': ServiceAttempt;
     'audit-logs': AuditLog;
+    'crm-settings': CrmSetting;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -121,6 +122,7 @@ export interface Config {
     'account-documents': AccountDocumentsSelect<false> | AccountDocumentsSelect<true>;
     'service-attempts': ServiceAttemptsSelect<false> | ServiceAttemptsSelect<true>;
     'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
+    'crm-settings': CrmSettingsSelect<false> | CrmSettingsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -2052,6 +2054,23 @@ export interface Account {
   suitNo?: string | null;
   statusWithIsame?: string | null;
   method?: string | null;
+  /**
+   * Override default fees for this account (leave empty to use defaults)
+   */
+  feeOverrides?: {
+    /**
+     * Override collection fee percentage
+     */
+    customCollectionFeePercent?: number | null;
+    /**
+     * Override summons fee amount
+     */
+    customSummonsFee?: number | null;
+    /**
+     * Override court filing fee
+     */
+    customCourtFee?: number | null;
+  };
   legalStatus?: ('none' | 'pending_review' | 'assigned' | 'in_court' | 'closed') | null;
   assignedCourtAgent?: (string | null) | User;
   /**
@@ -2397,6 +2416,56 @@ export interface AuditLog {
   createdAt: string;
 }
 /**
+ * Configure CRM fees, receipts, and reports
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "crm-settings".
+ */
+export interface CrmSetting {
+  id: string;
+  fees?: {
+    /**
+     * Collection fee percentage (e.g., 20 for 20%)
+     */
+    collectionFeePercent?: number | null;
+    /**
+     * Summons fee for Belize City
+     */
+    summonsFeeBelizeCity?: number | null;
+    /**
+     * Summons fee for other locations
+     */
+    summonsFeeOther?: number | null;
+    /**
+     * Court filing fee
+     */
+    courtFilingFee?: number | null;
+  };
+  receipt?: {
+    companyName?: string | null;
+    companyAddress?: string | null;
+    /**
+     * Phone number shown on receipts
+     */
+    companyPhone?: string | null;
+    /**
+     * Email shown on receipts
+     */
+    companyEmail?: string | null;
+    companyWebsite?: string | null;
+    /**
+     * Logo shown on payment receipts
+     */
+    receiptLogo?: (string | null) | Media;
+    /**
+     * Footer text shown at bottom of receipts
+     */
+    receiptFooter?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
@@ -2669,6 +2738,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'audit-logs';
         value: string | AuditLog;
+      } | null)
+    | ({
+        relationTo: 'crm-settings';
+        value: string | CrmSetting;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -3717,6 +3790,13 @@ export interface AccountsSelect<T extends boolean = true> {
   suitNo?: T;
   statusWithIsame?: T;
   method?: T;
+  feeOverrides?:
+    | T
+    | {
+        customCollectionFeePercent?: T;
+        customSummonsFee?: T;
+        customCourtFee?: T;
+      };
   legalStatus?: T;
   assignedCourtAgent?: T;
   assignedProcessServer?: T;
@@ -3973,6 +4053,33 @@ export interface AuditLogsSelect<T extends boolean = true> {
   ip?: T;
   userAgent?: T;
   timestamp?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "crm-settings_select".
+ */
+export interface CrmSettingsSelect<T extends boolean = true> {
+  fees?:
+    | T
+    | {
+        collectionFeePercent?: T;
+        summonsFeeBelizeCity?: T;
+        summonsFeeOther?: T;
+        courtFilingFee?: T;
+      };
+  receipt?:
+    | T
+    | {
+        companyName?: T;
+        companyAddress?: T;
+        companyPhone?: T;
+        companyEmail?: T;
+        companyWebsite?: T;
+        receiptLogo?: T;
+        receiptFooter?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

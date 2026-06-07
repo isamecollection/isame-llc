@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useToast } from '@/components/Toast'
+import { ReceiptOCR } from '@/components/crm/ReceiptOCR'
 
 export function RecordPaymentForm({
   accountId,
@@ -22,7 +23,6 @@ export function RecordPaymentForm({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
 
-  // Bank transfer fields
   const [bankFrom, setBankFrom] = useState('')
   const [accountFrom, setAccountFrom] = useState('')
   const [accountFromName, setAccountFromName] = useState('')
@@ -33,6 +33,15 @@ export function RecordPaymentForm({
 
   const { showToast } = useToast()
   const isBankTransfer = method === 'bank_transfer' || method === 'online'
+
+  const handleOCRExtracted = (data: any) => {
+    if (data.bankFrom) setBankFrom(data.bankFrom)
+    if (data.accountFrom) setAccountFrom(data.accountFrom)
+    if (data.amount) setAmount(data.amount)
+    if (data.reference) setReference(data.reference)
+    if (data.date) setDate(data.date)
+    showToast('Details extracted from receipt! Please verify before saving.')
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,7 +62,6 @@ export function RecordPaymentForm({
       status: 'completed',
     }
 
-    // Add bank transfer details if applicable
     if (isBankTransfer) {
       body.bankFrom = bankFrom || undefined
       body.accountFrom = accountFrom || undefined
@@ -63,11 +71,15 @@ export function RecordPaymentForm({
       body.transferTime = transferTime || undefined
     }
 
-    // Upload receipt image if provided
     if (receiptImage) {
       const formData = new FormData()
       formData.append('file', receiptImage)
-      const uploadRes = await fetch('/api/media', { method: 'POST', body: formData })
+      formData.append('_payload', JSON.stringify({ alt: 'Payment receipt' }))
+      const uploadRes = await fetch('/api/media', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
       if (uploadRes.ok) {
         const mediaDoc = await uploadRes.json()
         body.receiptImage = mediaDoc.doc.id
@@ -76,6 +88,7 @@ export function RecordPaymentForm({
 
     const res = await fetch('/api/payments', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
@@ -115,13 +128,16 @@ export function RecordPaymentForm({
       <button
         type="button"
         onClick={() => setAmount(currentBalance?.toString() || '')}
-        className="w-full py-2 px-4 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors text-sm font-medium"
+        className="w-full py-2 px-4 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 text-sm font-medium"
       >
         💡 Pay Full Balance
       </button>
 
       {!paymentSuccess ? (
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* OCR Section - only for bank transfers */}
+          {isBankTransfer && <ReceiptOCR onDataExtracted={handleOCRExtracted} />}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -184,7 +200,6 @@ export function RecordPaymentForm({
             </div>
           </div>
 
-          {/* Bank Transfer Details */}
           {isBankTransfer && (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 space-y-3">
               <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -262,18 +277,6 @@ export function RecordPaymentForm({
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Receipt Screenshot
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(e) => setReceiptImage(e.target.files?.[0] || null)}
-                  className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700"
-                />
               </div>
             </div>
           )}

@@ -1,6 +1,12 @@
 import { headers, cookies } from 'next/headers'
 import { getPayload } from '@/payload'
 import { FilterableAccountsTable } from '@/components/crm/FilterableAccountsTable'
+import {
+  getHighestRole,
+  canViewAllAccounts,
+  canAssignCollector,
+  canAssignCourtAgent,
+} from '@/lib/permissions'
 
 export default async function AccountsPage() {
   const payload = await getPayload()
@@ -10,9 +16,13 @@ export default async function AccountsPage() {
 
   if (!user) return <p className="text-gray-500">Unauthorized</p>
 
-  const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || 'collector'
+  const roles: string[] = user?.roles ?? []
+  const activeRoleCookie = cookieStore.get('activeRole')?.value
+  const activeRole =
+    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
 
-  const isManagement = ['supervisor', 'crm-manager', 'admin'].includes(activeRole)
+  const isManagement =
+    canViewAllAccounts(activeRole) && ['supervisor', 'crm-manager', 'admin'].includes(activeRole)
   const isClaimsOfficer = activeRole === 'claims-officer'
   const isCourtAgent = activeRole === 'court-agent'
   const isProcessServer = activeRole === 'process-server'
@@ -35,7 +45,7 @@ export default async function AccountsPage() {
   }
 
   let collectors: any[] = []
-  if (isManagement) {
+  if (canAssignCollector(activeRole)) {
     const res = await payload.find({
       collection: 'users',
       where: { roles: { contains: 'collector' } },
@@ -45,7 +55,7 @@ export default async function AccountsPage() {
   }
 
   let courtAgents: any[] = []
-  if (isClaimsOfficer) {
+  if (canAssignCourtAgent(activeRole)) {
     const res = await payload.find({
       collection: 'users',
       where: { roles: { contains: 'court-agent' } },
@@ -54,14 +64,12 @@ export default async function AccountsPage() {
     courtAgents = res.docs
   }
 
-  // Get clients for filter dropdown
+  // Clients for filter dropdown
   let clientsForFilter: any[] = []
-
-  if (isManagement || isClaimsOfficer) {
+  if (canViewAllAccounts(activeRole) && isManagement) {
     const res = await payload.find({ collection: 'clients', sort: 'name', limit: 9999 })
     clientsForFilter = res.docs
-  } else {
-    // Only show clients from assigned accounts
+  } else if (!canViewAllAccounts(activeRole)) {
     try {
       const accountsRes = await payload.find({
         collection: 'accounts',
@@ -79,7 +87,7 @@ export default async function AccountsPage() {
         clientsForFilter = res.docs
       }
     } catch (e) {
-      console.error('Error fetching clients for filter:', e)
+      console.error('Error fetching clients:', e)
     }
   }
 
@@ -88,7 +96,7 @@ export default async function AccountsPage() {
       <h1 className="text-2xl font-bold mb-6">Accounts</h1>
       <FilterableAccountsTable
         baseFilter={baseFilter}
-        showAssignment={isManagement || isClaimsOfficer}
+        showAssignment={canAssignCollector(activeRole) || canAssignCourtAgent(activeRole)}
         collectors={collectors}
         courtAgents={courtAgents}
         assignmentType={isClaimsOfficer ? 'court-agent' : 'collector'}

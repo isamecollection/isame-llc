@@ -25,6 +25,13 @@ import { AffidavitUpload } from '@/components/crm/AffidavitUpload'
 import { TriggerCourtCharges } from '@/components/crm/TriggerCourtCharges'
 import { headers, cookies } from 'next/headers'
 import { logAudit } from '@/lib/auditLogger'
+import {
+  getHighestRole,
+  isLimitedView,
+  canManageLegal,
+  canAssignProcessServer,
+  canApplyCourtCharges,
+} from '@/lib/permissions'
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -50,21 +57,19 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   })
 
   const cookieStore = await cookies()
-  const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || null
+  const roles: string[] = user?.roles ?? []
+  const activeRoleCookie = cookieStore.get('activeRole')?.value
+  const activeRole =
+    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
 
-  const isClient = activeRole === 'client'
-  const isProcessServer = activeRole === 'process-server'
-  const isClaimsOfficer = activeRole === 'claims-officer'
-  const isCourtAgent = activeRole === 'court-agent'
-  const isAdmin = activeRole === 'admin'
-  const isManager = activeRole === 'crm-manager' || isAdmin
-
-  const isLimitedView = isProcessServer || isClaimsOfficer || isCourtAgent
-  const canManageLegal = isCourtAgent || isClaimsOfficer || isAdmin
-  const hasFullAccess = !isLimitedView && !isClient
+  const limitedView = isLimitedView(activeRole)
+  const manageLegal = canManageLegal(activeRole)
+  const fullAccess = !limitedView && activeRole !== 'client'
+  const showCourtCharges = canApplyCourtCharges(activeRole)
+  const showProcessServerAssign = canAssignProcessServer(activeRole)
 
   let processServers: any[] = []
-  if (isManager || isCourtAgent) {
+  if (showProcessServerAssign) {
     const res = await payload.find({
       collection: 'users',
       where: { roles: { contains: 'process-server' } },
@@ -73,7 +78,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     processServers = res.docs
   }
 
-  const [agreements, payments, scheduled] = hasFullAccess
+  const [agreements, payments, scheduled] = fullAccess
     ? await Promise.all([
         payload.find({
           collection: 'agreements',
@@ -98,27 +103,30 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   const tabs: { label: string; content: React.ReactNode }[] = []
 
-  if (isClient) {
+  if (activeRole === 'client') {
     tabs.push({ label: 'Report', content: <ClientAccountReport accountId={account.id} /> })
-  } else if (isLimitedView) {
-    if (isProcessServer)
+  } else if (limitedView) {
+    if (activeRole === 'process-server')
       tabs.push({ label: 'Contact', content: <ContactInfoTab account={account} /> })
     tabs.push({ label: 'Notes', content: <NotesSection accountId={account.id} /> })
     tabs.push({ label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> })
-    if (isProcessServer || isCourtAgent || isAdmin) {
+    if (activeRole === 'process-server' || activeRole === 'court-agent' || activeRole === 'admin') {
       tabs.push({
         label: 'Service',
         content: (
           <div className="space-y-6">
-            {isProcessServer && (
+            {activeRole === 'process-server' && (
               <AffidavitUpload accountId={account.id} currentAffidavit={account.affidavitProof} />
             )}
-            <ServiceAttemptsSection accountId={account.id} readOnly={!isProcessServer} />
+            <ServiceAttemptsSection
+              accountId={account.id}
+              readOnly={activeRole !== 'process-server'}
+            />
           </div>
         ),
       })
     }
-    if (canManageLegal) {
+    if (manageLegal) {
       tabs.push({
         label: 'Legal',
         content: (
@@ -151,7 +159,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           <div className="space-y-6">
             <ActionsSection accountId={account.id} currentBalance={account.currentBalance ?? 0} />
             <SendToLegalButton accountId={account.id} />
-            {isManager && (
+            {showCourtCharges && (
               <TriggerCourtCharges
                 accountId={account.id}
                 townCity={account.townCity || undefined}
@@ -168,7 +176,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         label: 'Service',
         content: (
           <div className="space-y-6">
-            {(isManager || isCourtAgent) && (
+            {showProcessServerAssign && (
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
                 <h4 className="font-semibold mb-3">Assign Process Server</h4>
                 <AssignProcessServer accountId={account.id} processServers={processServers} />
@@ -183,7 +191,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         content: (
           <div className="space-y-6">
             <LegalCaseView accountId={account.id} />
-            {canManageLegal && (
+            {manageLegal && (
               <>
                 <LegalCaseForm accountId={account.id} />
                 <CourtEventsManager accountId={account.id} />
@@ -215,13 +223,9 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div>
-      <AccountHeader
-        account={account}
-        showMerge={hasFullAccess}
-        userRole={activeRole || undefined}
-      />
+      <AccountHeader account={account} showMerge={fullAccess} userRole={activeRole || undefined} />
       <Tabs tabs={tabs} />
-      {hasFullAccess && (
+      {fullAccess && (
         <div className="mt-4">
           <a
             href={`/crm/accounts/${account.id}/merge`}

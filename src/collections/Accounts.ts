@@ -6,10 +6,7 @@ export const Accounts: CollectionConfig = {
   access: {
     read: ({ req: { user } }) => {
       if (!user) return false
-
       const roles = user.roles || []
-
-      // Admin, CRM Manager, Claims Officer, Supervisor can see all accounts
       if (
         roles.some((r: string) =>
           ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r),
@@ -17,28 +14,15 @@ export const Accounts: CollectionConfig = {
       ) {
         return true
       }
-
-      // Court Agent can only see accounts assigned to them
       if (roles.includes('court-agent')) {
-        return {
-          and: [{ assignedCourtAgent: { equals: user.id } }],
-        }
+        return { and: [{ assignedCourtAgent: { equals: user.id } }] }
       }
-
-      // Process Server can only see accounts assigned to them
       if (roles.includes('process-server')) {
-        return {
-          and: [{ assignedProcessServer: { equals: user.id } }],
-        }
+        return { and: [{ assignedProcessServer: { equals: user.id } }] }
       }
-
-      // Collector can only see accounts assigned to them
       if (roles.includes('collector')) {
-        return {
-          and: [{ assignedCollector: { equals: user.id } }],
-        }
+        return { and: [{ assignedCollector: { equals: user.id } }] }
       }
-
       return false
     },
     update: ({ req: { user } }) => {
@@ -103,6 +87,36 @@ export const Accounts: CollectionConfig = {
     { name: 'suitNo', type: 'text' },
     { name: 'statusWithIsame', type: 'text' },
     { name: 'method', type: 'text' },
+    // Fee Overrides
+    {
+      name: 'feeOverrides',
+      type: 'group',
+      label: 'Fee Overrides',
+      admin: {
+        description: 'Override default fees for this account (leave empty to use defaults)',
+      },
+      fields: [
+        {
+          name: 'customCollectionFeePercent',
+          type: 'number',
+          min: 0,
+          max: 100,
+          admin: { description: 'Override collection fee percentage' },
+        },
+        {
+          name: 'customSummonsFee',
+          type: 'number',
+          min: 0,
+          admin: { description: 'Override summons fee amount' },
+        },
+        {
+          name: 'customCourtFee',
+          type: 'number',
+          min: 0,
+          admin: { description: 'Override court filing fee' },
+        },
+      ],
+    },
     {
       name: 'legalStatus',
       type: 'select',
