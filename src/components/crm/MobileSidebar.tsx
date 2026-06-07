@@ -7,8 +7,8 @@ export function MobileSidebar({
   showManagement,
   showSupervisor,
   showReports,
-  roles, // new
-  activeRole, // new
+  roles,
+  activeRole,
   userName,
 }: {
   showManagement: boolean
@@ -19,6 +19,7 @@ export function MobileSidebar({
   userName: string
 }) {
   const [open, setOpen] = useState(false)
+  const isAdmin = activeRole === 'admin'
 
   return (
     <>
@@ -41,12 +42,27 @@ export function MobileSidebar({
           <button onClick={() => setOpen(false)} className="self-end text-white text-2xl">
             &times;
           </button>
+
           <Link href="/crm/dashboard" onClick={() => setOpen(false)} className="text-white text-lg">
             📊 Dashboard
           </Link>
           <Link href="/crm/accounts" onClick={() => setOpen(false)} className="text-white text-lg">
             📋 Accounts
           </Link>
+          <Link href="/crm/calendar" onClick={() => setOpen(false)} className="text-white text-lg">
+            📅 Calendar
+          </Link>
+
+          {isAdmin && (
+            <Link
+              href="/crm/settings"
+              onClick={() => setOpen(false)}
+              className="text-white text-lg"
+            >
+              ⚙️ Settings
+            </Link>
+          )}
+
           {showManagement && (
             <>
               <Link href="/crm/users" onClick={() => setOpen(false)} className="text-white text-lg">
@@ -66,8 +82,16 @@ export function MobileSidebar({
               >
                 ➕ Add Accounts
               </Link>
+              <Link
+                href="/crm/audit-logs"
+                onClick={() => setOpen(false)}
+                className="text-white text-lg"
+              >
+                🔍 Audit Logs
+              </Link>
             </>
           )}
+
           {showSupervisor && (
             <Link
               href="/crm/supervisor/users"
@@ -77,11 +101,13 @@ export function MobileSidebar({
               👥 Manage Team
             </Link>
           )}
+
           {showReports && (
             <Link href="/crm/reports" onClick={() => setOpen(false)} className="text-white text-lg">
               📊 Reports
             </Link>
           )}
+
           <div className="mt-auto border-t border-slate-700 pt-4 space-y-3">
             <RoleSwitcher roles={roles} activeRole={activeRole} />
             <p className="text-sm text-slate-300">{userName}</p>

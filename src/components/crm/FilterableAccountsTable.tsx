@@ -43,7 +43,6 @@ export function FilterableAccountsTable({
   const bulkLabel =
     assignmentType === 'court-agent' ? 'Assign to Court Agent…' : 'Assign to Collector…'
 
-  // Use provided filterClients, or fetch all if not provided
   const [clients, setClients] = useState<any[]>(filterClients || [])
 
   useEffect(() => {
@@ -171,7 +170,7 @@ export function FilterableAccountsTable({
             placeholder="Name or Account #"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm"
+            className="w-48 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
           />
         </div>
         <div>
@@ -297,6 +296,7 @@ export function FilterableAccountsTable({
                   <th className="px-4 py-3 font-semibold">Client</th>
                   <th className="px-4 py-3 font-semibold">Balance</th>
                   {showAssignment && <th className="px-4 py-3 font-semibold">{headerLabel}</th>}
+                  <th className="px-4 py-3 font-semibold">Process Server</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold"></th>
                 </tr>
@@ -330,6 +330,11 @@ export function FilterableAccountsTable({
                         />
                       </td>
                     )}
+                    <td className="px-4 py-3 text-xs">
+                      {typeof account.assignedProcessServer === 'object'
+                        ? account.assignedProcessServer?.name
+                        : account.assignedProcessServer || '—'}
+                    </td>
                     <td className="px-4 py-3">{account.status}</td>
                     <td className="px-4 py-3">
                       <Link

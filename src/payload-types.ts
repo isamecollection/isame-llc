@@ -1617,6 +1617,10 @@ export interface User {
   id: string;
   name?: string | null;
   /**
+   * For SMS court reminders (e.g., 5016234567)
+   */
+  phone?: string | null;
+  /**
    * Profile picture
    */
   avatar?: (string | null) | Media;
@@ -3733,6 +3737,7 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  phone?: T;
   avatar?: T;
   roles?: T;
   supervisor?: T;

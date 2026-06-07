@@ -25,6 +25,12 @@ export const Users: CollectionConfig = {
   fields: [
     { name: 'name', type: 'text' },
     {
+      name: 'phone',
+      type: 'text',
+      label: 'Phone Number',
+      admin: { description: 'For SMS court reminders (e.g., 5016234567)' },
+    },
+    {
       name: 'avatar',
       type: 'upload',
       relationTo: 'media',
