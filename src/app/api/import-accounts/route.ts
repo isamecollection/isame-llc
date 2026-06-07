@@ -1,5 +1,7 @@
 import { getPayload } from '@/payload'
-import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server'
+import { getHighestRole, canImportAccounts } from '@/lib/permissions'
 
 function safeParseFloat(value: string): number {
   if (!value || value.trim() === '') return 0
@@ -31,13 +33,28 @@ function parseCSVLine(line: string): string[] {
   return result
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // AUTHENTICATE
+  const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roles: string[] = user.roles || []
+  const effectiveRole = getHighestRole(roles)
+
+  if (!canImportAccounts(effectiveRole)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  // ORIGINAL CODE CONTINUES BELOW
   const { csv, clientId } = await request.json()
   if (!csv || !clientId) {
     return NextResponse.json({ message: 'Missing CSV data or client ID' }, { status: 400 })
   }
 
-  const payload = await getPayload()
   let client
   try {
     client = await payload.findByID({ collection: 'clients', id: clientId })
@@ -55,7 +72,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const headers = parseCSVLine(lines[0]).map((h: string) => h.trim())
+  const csvHeaders = parseCSVLine(lines[0]).map((h: string) => h.trim())
   const dataRows = lines.slice(1).filter((line: string) => {
     const trimmed = line.trim()
     if (!trimmed) return false
@@ -70,7 +87,7 @@ export async function POST(request: Request) {
   for (let i = 0; i < dataRows.length; i++) {
     const values = parseCSVLine(dataRows[i]).map((v: string) => v.trim())
     const record: Record<string, string> = {}
-    headers.forEach((h: string, j: number) => {
+    csvHeaders.forEach((h: string, j: number) => {
       record[h] = values[j] || ''
     })
 
@@ -110,11 +127,6 @@ export async function POST(request: Request) {
       const suitNo = record['Suit No.']?.trim() || ''
       const statusWithIsame = record['STATUS W/ISAME']?.trim() || ''
 
-      // ── NEW CALCULATION ──
-      // Amount to collect = Initial - what debtor already paid
-      // 20% fee is on the amount to collect
-      // Total Collectable = Amount to Collect + 20% Fee
-      // No auto court charges
       const amountToCollect = initialAccount - paymentsReceived
       const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
       const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
@@ -122,13 +134,9 @@ export async function POST(request: Request) {
       const summonsAmount = 0
       const courtCharge = 0
 
-      // Determine account status
       let status: 'active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed' = 'active'
-      if (statusWithIsame.toUpperCase() === 'PAID') {
-        status = 'paid'
-      }
+      if (statusWithIsame.toUpperCase() === 'PAID') status = 'paid'
 
-      // Determine legalStatus
       let legalStatus: 'none' | 'pending_review' | 'assigned' | 'in_court' | 'closed' = 'none'
       const methodLower = method.toLowerCase()
       if (methodLower.includes('court')) {
@@ -150,18 +158,15 @@ export async function POST(request: Request) {
         legalStatus = 'pending_review'
       }
 
-      // Service status
       let serviceStatus: 'not_assigned' | 'pending_service' | 'served' | 'not_found' | 'completed' =
         'not_assigned'
       if (
         methodLower.includes('personally served') ||
         methodLower.includes('served on') ||
         methodLower.includes('served')
-      ) {
+      )
         serviceStatus = 'served'
-      } else if (methodLower.includes('to serve over')) {
-        serviceStatus = 'pending_service'
-      }
+      else if (methodLower.includes('to serve over')) serviceStatus = 'pending_service'
 
       const accountNumber = `${prefix}#${(i + 1).toString().padStart(4, '0')}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 

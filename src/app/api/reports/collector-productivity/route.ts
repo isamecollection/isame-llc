@@ -1,12 +1,28 @@
 import { getPayload } from '@/payload'
-import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server'
+import { getHighestRole, canViewReports } from '@/lib/permissions'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const start = searchParams.get('start') || ''
   const end = searchParams.get('end') || ''
 
+  // Authenticate
   const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Authorize - only managers, supervisors, and admins can view collector productivity
+  const roles: string[] = user.roles || []
+  const effectiveRole = getHighestRole(roles)
+
+  if (!canViewReports(effectiveRole)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
 
   const collectors = await payload.find({
     collection: 'users',
@@ -15,7 +31,6 @@ export async function GET(request: Request) {
 
   const results = await Promise.all(
     collectors.docs.map(async (user: any) => {
-      // Get collector's assigned accounts
       const assignedAccounts = await payload.find({
         collection: 'accounts',
         where: { assignedCollector: { equals: user.id } },
@@ -27,7 +42,6 @@ export async function GET(request: Request) {
       const notesWhere: any = { createdBy: { equals: user.id } }
       const agreementsWhere: any = { createdBy: { equals: user.id } }
 
-      // Query payments by account, not by collectedBy
       const paymentsWhere: any = {
         and: [
           { status: { equals: 'completed' } },

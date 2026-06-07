@@ -1,16 +1,26 @@
 import { getPayload } from '@/payload'
+import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+
+  // Authenticate
   const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const payment = (await payload.findByID({
     collection: 'payments',
     id,
     depth: 1,
   })) as any
+
+  // ... rest stays exactly the same
 
   if (!payment) {
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })

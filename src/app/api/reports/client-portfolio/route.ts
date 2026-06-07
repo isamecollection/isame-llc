@@ -1,8 +1,24 @@
 import { getPayload } from '@/payload'
+import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { getHighestRole, canViewReports } from '@/lib/permissions'
 
 export async function GET() {
+  // Authenticate
   const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Authorize
+  const roles: string[] = user.roles || []
+  const effectiveRole = getHighestRole(roles)
+
+  if (!canViewReports(effectiveRole)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
 
   const clients = await payload.find({ collection: 'clients', sort: 'name' })
 
@@ -11,12 +27,11 @@ export async function GET() {
       const accounts = await payload.find({
         collection: 'accounts',
         where: { client: { equals: client.id } },
-        limit: 9999, // ← ADD THIS
+        limit: 9999,
       })
 
       const accountIds = accounts.docs.map((a) => a.id)
 
-      // Only run these queries if there are accounts
       if (accountIds.length === 0) {
         return {
           id: client.id,
@@ -33,28 +48,21 @@ export async function GET() {
       const [payments, agreements, legalCases] = await Promise.all([
         payload.find({
           collection: 'payments',
-          where: {
-            and: [{ status: { equals: 'completed' } }, { account: { in: accountIds } }],
-          },
-          limit: 9999, // ← ADD THIS
+          where: { and: [{ status: { equals: 'completed' } }, { account: { in: accountIds } }] },
+          limit: 9999,
         }),
         payload.find({
           collection: 'agreements',
-          where: {
-            and: [{ account: { in: accountIds } }, { status: { equals: 'active' } }],
-          },
-          limit: 9999, // ← ADD THIS
+          where: { and: [{ account: { in: accountIds } }, { status: { equals: 'active' } }] },
+          limit: 9999,
         }),
         payload.find({
           collection: 'legal-cases',
-          where: {
-            and: [{ account: { in: accountIds } }, { status: { not_equals: 'closed' } }],
-          },
-          limit: 9999, // ← ADD THIS
+          where: { and: [{ account: { in: accountIds } }, { status: { not_equals: 'closed' } }] },
+          limit: 9999,
         }),
       ])
 
-      // Calculate totals using stored fields
       let totalOutstanding = 0
       let totalCollected = 0
 

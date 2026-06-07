@@ -74,3 +74,7 @@ export function isLimitedView(activeRole: string): boolean {
 export function isManagementRole(activeRole: string): boolean {
   return ['admin', 'crm-manager', 'supervisor'].includes(activeRole)
 }
+// TO THIS:
+export function canViewAgentStats(activeRole: string): boolean {
+  return ['admin', 'crm-manager', 'supervisor'].includes(activeRole)
+}

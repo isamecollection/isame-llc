@@ -8,6 +8,7 @@ type AgentStats = {
   totalAccounts: number
   totalOutstanding: number
   totalCollected: number
+  activeAgreements: number // ← ADD THIS
   brokenPromisesCount: number
   futurePromisesTotal: number
 }
@@ -98,7 +99,7 @@ export default function SupervisorDashboardClient({
               value={stats.brokenPromisesCount}
               variant={stats.brokenPromisesCount > 0 ? 'urgent' : 'default'}
             />
-            <StatCard title="Future Promises" value={stats.futurePromisesTotal} isCurrency />
+            <StatCard title="Active Agreements" value={stats.activeAgreements} />
           </div>
         )}
 

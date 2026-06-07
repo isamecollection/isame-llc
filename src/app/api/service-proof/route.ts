@@ -3,11 +3,25 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Authenticate
     const payload = await getPayload()
     const { user } = await payload.auth({ headers: request.headers })
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Authorize - only process servers, court agents, claims officers, and admins
+    const roles: string[] = user.roles || []
+    const canUpload = roles.some((r: string) =>
+      ['process-server', 'court-agent', 'claims-officer', 'admin'].includes(r),
+    )
+
+    if (!canUpload) {
+      return NextResponse.json(
+        { error: 'Unauthorized - not authorized to upload service proof' },
+        { status: 403 },
+      )
     }
 
     const formData = await request.formData()

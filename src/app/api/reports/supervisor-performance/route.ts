@@ -1,51 +1,60 @@
 import { getPayload } from '@/payload'
-import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
+import { NextRequest, NextResponse } from 'next/server'
+import { getHighestRole, canViewAgentStats } from '@/lib/permissions'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const supervisorId = searchParams.get('supervisorId')
-  if (!supervisorId) return NextResponse.json({ error: 'Missing supervisorId' }, { status: 400 })
+  const requestedSupervisorId = searchParams.get('supervisorId')
 
+  // Authenticate
   const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
 
-  // Verify the requesting user is a supervisor (optional but recommended)
-  // We'll trust the param for now; you can add auth if needed.
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  // 1. Get team members
+  const roles: string[] = user.roles || []
+  const effectiveRole = getHighestRole(roles)
+  const isManager = ['admin', 'crm-manager'].includes(effectiveRole)
+  const isSupervisor = effectiveRole === 'supervisor'
+
+  // Authorization
+  let supervisorId: string
+
+  if (isManager && requestedSupervisorId) {
+    supervisorId = requestedSupervisorId
+  } else if (isSupervisor) {
+    // Supervisor can only view their own performance
+    supervisorId = user.id
+  } else {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  // Get team members
   const team = await payload.find({
     collection: 'users',
     where: {
       and: [{ supervisor: { equals: supervisorId } }, { roles: { contains: 'collector' } }],
     },
+    limit: 9999,
   })
 
-  const collectorIds = team.docs.map((m) => m.id)
+  const collectorIds = team.docs.map((m: any) => m.id)
+  const accountIds: string[] = []
 
-  // 2. Daily collections for the last 7 days
-  const today = new Date()
-  const dailyCollections: { date: string; amount: number }[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    const dayStr = d.toISOString().split('T')[0]
-    const nextDayStr = new Date(d.getTime() + 86400000).toISOString().split('T')[0]
-
-    const payments = await payload.find({
-      collection: 'payments',
-      where: {
-        and: [
-          { status: { equals: 'completed' } },
-          { collectedBy: { in: collectorIds } },
-          { date: { greater_than_equal: dayStr } },
-          { date: { less_than: nextDayStr } },
-        ],
-      },
+  // Get all accounts for the team
+  if (collectorIds.length > 0) {
+    const teamAccounts = await payload.find({
+      collection: 'accounts',
+      where: { assignedCollector: { in: collectorIds } },
+      limit: 9999,
     })
-    const total = payments.docs.reduce((sum, p) => sum + (p.amount ?? 0), 0)
-    dailyCollections.push({ date: dayStr, amount: total })
+    teamAccounts.docs.forEach((a: any) => accountIds.push(a.id))
   }
 
-  // 3. Promises kept vs. broken per collector (this month)
+  const today = new Date()
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
   const endOfMonth = new Date(
     today.getFullYear(),
@@ -56,39 +65,79 @@ export async function GET(request: Request) {
     59,
   ).toISOString()
 
+  // Daily collections for last 7 days (using account IDs, not collectedBy)
+  const dailyCollections: { date: string; amount: number }[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const dayStr = d.toISOString().split('T')[0]
+    const nextDayStr = new Date(d.getTime() + 86400000).toISOString().split('T')[0]
+
+    const payments =
+      accountIds.length > 0
+        ? await payload.find({
+            collection: 'payments',
+            where: {
+              and: [
+                { status: { equals: 'completed' } },
+                { account: { in: accountIds } },
+                { date: { greater_than_equal: dayStr } },
+                { date: { less_than: nextDayStr } },
+              ],
+            },
+          })
+        : { docs: [] }
+
+    const total = payments.docs.reduce((sum: number, p: any) => sum + (p.amount ?? 0), 0)
+    dailyCollections.push({ date: dayStr, amount: total })
+  }
+
+  // Promises per collector (collector-specific)
   const promisesPerCollector = await Promise.all(
-    team.docs.map(async (member) => {
-      // Kept: scheduled payments paid this month
-      const kept = await payload.count({
-        collection: 'scheduled-payments',
-        where: {
-          and: [
-            { status: { equals: 'paid' } },
-            { updatedAt: { greater_than_equal: startOfMonth } },
-            { updatedAt: { less_than_equal: endOfMonth } },
-            // We need to tie to collector – we can use account.assignedCollector, but that's indirect.
-            // For simplicity, we'll count all payments collected by this collector that are linked to scheduled-payments (via agreement).
-          ],
-        },
+    team.docs.map(async (member: any) => {
+      const memberAccounts = await payload.find({
+        collection: 'accounts',
+        where: { assignedCollector: { equals: member.id } },
+        limit: 9999,
       })
-      // Broken: scheduled payments missed this month
-      const broken = await payload.count({
-        collection: 'scheduled-payments',
-        where: {
-          and: [
-            { status: { equals: 'missed' } },
-            { updatedAt: { greater_than_equal: startOfMonth } },
-            { updatedAt: { less_than_equal: endOfMonth } },
-          ],
-        },
-      })
+      const memberAccountIds = memberAccounts.docs.map((a: any) => a.id)
+
+      const [kept, broken] = await Promise.all([
+        memberAccountIds.length > 0
+          ? payload.count({
+              collection: 'scheduled-payments',
+              where: {
+                and: [
+                  { status: { equals: 'paid' } },
+                  { account: { in: memberAccountIds } },
+                  { updatedAt: { greater_than_equal: startOfMonth } },
+                  { updatedAt: { less_than_equal: endOfMonth } },
+                ],
+              },
+            })
+          : { totalDocs: 0 },
+        memberAccountIds.length > 0
+          ? payload.count({
+              collection: 'scheduled-payments',
+              where: {
+                and: [
+                  { status: { equals: 'missed' } },
+                  { account: { in: memberAccountIds } },
+                  { updatedAt: { greater_than_equal: startOfMonth } },
+                  { updatedAt: { less_than_equal: endOfMonth } },
+                ],
+              },
+            })
+          : { totalDocs: 0 },
+      ])
+
       return { name: member.name, kept: kept.totalDocs, broken: broken.totalDocs }
     }),
   )
 
-  // 4. Calls per collector this month
+  // Calls per collector this month
   const callsPerCollector = await Promise.all(
-    team.docs.map(async (member) => {
+    team.docs.map(async (member: any) => {
       const calls = await payload.count({
         collection: 'call-attempts',
         where: {

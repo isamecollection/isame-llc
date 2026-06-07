@@ -1,14 +1,22 @@
 import { getPayload } from '@/payload'
+import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { getHighestRole, canRecordPayment } from '@/lib/permissions'
 
 // GET - List payments (for payment history table)
 export async function GET(request: NextRequest) {
+  // Authenticate
+  const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const sort = searchParams.get('sort') || '-createdAt'
   const limit = parseInt(searchParams.get('limit') || '20')
   const accountId = searchParams.get('where[account][equals]')
-
-  const payload = await getPayload()
 
   const where: any = {}
   if (accountId) where.account = { equals: accountId }
@@ -26,7 +34,24 @@ export async function GET(request: NextRequest) {
 
 // POST - Create payment with balance update & receipt
 export async function POST(request: NextRequest) {
+  // Authenticate
+  const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Authorize
+  const roles: string[] = user.roles || []
+  const effectiveRole = getHighestRole(roles)
+
+  if (!canRecordPayment(effectiveRole)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
   const body = await request.json()
+  // ... rest stays exactly the same
   const {
     account,
     amount,
@@ -47,8 +72,6 @@ export async function POST(request: NextRequest) {
   if (!account || !amount || amount <= 0) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
-
-  const payload = await getPayload()
 
   try {
     // Get account BEFORE update to capture balance before

@@ -1,5 +1,7 @@
 import { getPayload } from '@/payload'
+import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { getHighestRole, canRecordPayment } from '@/lib/permissions'
 
 // GET - List payments (for payment history table)
 export async function GET(request: NextRequest) {
@@ -26,6 +28,19 @@ export async function GET(request: NextRequest) {
 
 // POST - Create payment with balance update & receipt
 export async function POST(request: NextRequest) {
+  // Authenticate & Authorize
+  const payload = await getPayload()
+  const { user } = await payload.auth({ headers: await headers() })
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const effectiveRole = getHighestRole(user.roles || [])
+  if (!canRecordPayment(effectiveRole)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
   const body = await request.json()
   const {
     account,
@@ -48,9 +63,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const payload = await getPayload()
-
   try {
+    const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
+    const balanceBefore = accountDoc.currentBalance || 0
+
     const payment = await payload.create({
       collection: 'payments',
       data: {
@@ -71,17 +87,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
     const newPaymentsReceived = (accountDoc.paymentsReceived || 0) + parseFloat(amount)
-    const newBalance = Math.max(0, (accountDoc.currentBalance || 0) - parseFloat(amount))
-    const newStatus = newBalance <= 0 ? 'settled' : accountDoc.status
+    const balanceAfter = Math.max(0, balanceBefore - parseFloat(amount))
+    const newStatus = balanceAfter <= 0 ? 'settled' : accountDoc.status
 
     await payload.update({
       collection: 'accounts',
       id: account,
       data: {
         paymentsReceived: newPaymentsReceived,
-        currentBalance: newBalance,
+        currentBalance: balanceAfter,
         status: newStatus,
       },
     })
@@ -92,7 +107,10 @@ export async function POST(request: NextRequest) {
       success: true,
       paymentId: payment.id,
       receiptUrl,
-      newBalance,
+      balanceBefore,
+      balanceAfter,
+      paymentAmount: parseFloat(amount),
+      newBalance: balanceAfter,
       newPaymentsReceived,
     })
   } catch (error: any) {
