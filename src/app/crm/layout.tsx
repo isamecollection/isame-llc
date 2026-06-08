@@ -9,6 +9,7 @@ import { QuickLogPopup } from '@/components/QuickLogPopup'
 import { LogoutButton } from '@/components/crm/LogoutButton'
 import { SessionTimeout } from '@/components/crm/SessionTimeout'
 import { OfflineIndicator } from '@/components/crm/OfflineIndicator'
+import { ActiveRoleFix } from '@/components/crm/ActiveRoleFix'
 import Link from 'next/link'
 import {
   getHighestRole,
@@ -123,6 +124,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
         </div>
         <QuickLogPopup />
         <SessionTimeout />
+        <ActiveRoleFix roles={roles} currentCookie={activeRoleCookie} />
       </QuickLogProvider>
     </>
   )
