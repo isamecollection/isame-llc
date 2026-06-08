@@ -30,6 +30,16 @@ const ROLE_LABELS: Record<string, string> = {
   collector: 'Collections',
 }
 
+const CRM_ROLES = [
+  'admin',
+  'crm-manager',
+  'supervisor',
+  'claims-officer',
+  'court-agent',
+  'process-server',
+  'collector',
+]
+
 export default async function CrmRootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
   const cookieStore = await cookies()
@@ -42,11 +52,14 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   const roles: string[] = user?.roles ?? []
   const activeRoleCookie = cookieStore.get('activeRole')?.value
 
-  // THE KEY CHANGE: Cookie wins if valid, otherwise highest priority
+  // If user has multiple roles, cookie can override. Otherwise always use highest role.
+  const crmRoles = roles.filter((r) => CRM_ROLES.includes(r))
+  const hasMultipleRoles = crmRoles.length > 1
   const activeRole =
-    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
+    hasMultipleRoles && activeRoleCookie && roles.includes(activeRoleCookie)
+      ? activeRoleCookie
+      : getHighestRole(roles)
 
-  // All UI decisions based on activeRole
   const showManagement = canManageUsers(activeRole)
   const showReports = canViewReports(activeRole)
 
@@ -72,29 +85,15 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
                 <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink>
               </>
             )}
-
             {activeRole === 'supervisor' && (
               <NavLink href="/crm/supervisor/users">👥 Manage Team</NavLink>
             )}
             {showReports && <NavLink href="/crm/reports">📊 Reports</NavLink>}
-
             <div className="flex-1" />
             <NavLink href="/crm/profile">👤 My Profile</NavLink>
-
             <div className="border-t border-slate-700 pt-4 space-y-3">
               <ThemeToggle />
-              {/* RoleSwitcher only if user has multiple roles */}
-              {roles.filter((r) =>
-                [
-                  'admin',
-                  'crm-manager',
-                  'supervisor',
-                  'claims-officer',
-                  'court-agent',
-                  'process-server',
-                  'collector',
-                ].includes(r),
-              ).length > 1 && <RoleSwitcher roles={roles} activeRole={activeRole} />}
+              {hasMultipleRoles && <RoleSwitcher roles={roles} activeRole={activeRole} />}
               <LogoutButton />
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold overflow-hidden shrink-0">
@@ -111,7 +110,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
               </div>
             </div>
           </aside>
-
           <MobileSidebar
             showManagement={showManagement}
             showSupervisor={activeRole === 'supervisor'}

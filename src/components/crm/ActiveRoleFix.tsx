@@ -20,8 +20,9 @@ export function ActiveRoleFix({
 }) {
   useEffect(() => {
     const correctRole = ROLE_PRIORITY.find((r) => roles.includes(r)) || 'collector'
-    if (currentCookie && currentCookie !== correctRole && !roles.includes(currentCookie || '')) {
-      // Cookie is set to a role the user doesn't have - fix it
+
+    // Silently fix cookie without reload if it's wrong
+    if (currentCookie && !roles.includes(currentCookie)) {
       document.cookie = `activeRole=${correctRole}; path=/crm; SameSite=Lax`
     }
   }, [roles, currentCookie])
