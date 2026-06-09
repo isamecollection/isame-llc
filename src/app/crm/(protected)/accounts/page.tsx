@@ -28,7 +28,7 @@ export default async function AccountsPage() {
   const isProcessServer = activeRole === 'process-server'
   const isCollector = activeRole === 'collector'
 
-  // Build filter based on active role
+  // Build filter based on active role - use FLAT properties, no nested 'and'
   const baseFilter: any = {}
 
   if (isManagement) {
@@ -36,16 +36,13 @@ export default async function AccountsPage() {
   } else if (isClaimsOfficer) {
     baseFilter.status = { equals: 'legal' }
   } else if (isCourtAgent) {
-    // Court agent sees their assigned legal accounts
-    baseFilter.and = [{ assignedCourtAgent: { equals: user.id } }]
+    baseFilter.assignedCourtAgent = { equals: user.id }
   } else if (isProcessServer) {
-    baseFilter.and = [
-      { assignedProcessServer: { equals: user.id } },
-      { serviceStatus: { equals: 'pending_service' } },
-    ]
+    baseFilter.assignedProcessServer = { equals: user.id }
+    baseFilter.serviceStatus = { equals: 'pending_service' }
   } else if (isCollector) {
-    // Collector sees their assigned active accounts
-    baseFilter.and = [{ status: { equals: 'active' } }, { assignedCollector: { equals: user.id } }]
+    baseFilter.status = { equals: 'active' }
+    baseFilter.assignedCollector = { equals: user.id }
   }
 
   let collectors: any[] = []

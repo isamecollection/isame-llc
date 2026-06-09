@@ -58,11 +58,6 @@ export function FilterableAccountsTable({
   const fetchAccounts = async (pageNum = 1) => {
     setLoading(true)
     setPage(pageNum)
-    const params = new URLSearchParams()
-    params.append('sort', '-currentBalance')
-    params.append('limit', PAGE_SIZE.toString())
-    params.append('page', pageNum.toString())
-    params.append('depth', '1')
 
     const where: any = { ...baseFilter }
     if (search) {
@@ -70,16 +65,25 @@ export function FilterableAccountsTable({
     }
     if (statusFilter) where.status = { equals: statusFilter }
     if (clientId) where.client = { equals: clientId }
-    if (minBalance || maxBalance) {
-      where.and = where.and || []
-      if (minBalance)
-        where.and.push({ currentBalance: { greater_than_equal: parseFloat(minBalance) } })
-      if (maxBalance)
-        where.and.push({ currentBalance: { less_than_equal: parseFloat(maxBalance) } })
-    }
+    if (minBalance)
+      where.currentBalance = {
+        ...(where.currentBalance || {}),
+        greater_than_equal: parseFloat(minBalance),
+      }
+    if (maxBalance)
+      where.currentBalance = {
+        ...(where.currentBalance || {}),
+        less_than_equal: parseFloat(maxBalance),
+      }
+
+    const params = new URLSearchParams()
+    params.append('sort', '-currentBalance')
+    params.append('limit', PAGE_SIZE.toString())
+    params.append('page', pageNum.toString())
+    params.append('depth', '1')
     params.append('where', JSON.stringify(where))
 
-    const res = await fetch(`/api/accounts?${params.toString()}`)
+    const res = await fetch(`/api/accounts?${params.toString()}`, { credentials: 'include' })
     const data = await res.json()
     setAccounts(data.docs || [])
     setTotalPages(data.totalPages || 1)
@@ -122,13 +126,12 @@ export function FilterableAccountsTable({
   const handleBulkArchive = async () => {
     if (selectedIds.length === 0 || !confirm(`Archive ${selectedIds.length} account(s)?`)) return
     setBulkArchiving(true)
-    for (const id of selectedIds) {
+    for (const id of selectedIds)
       await fetch(`/api/accounts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ archived: true }),
       })
-    }
     showToast(`Archived ${selectedIds.length} account(s).`)
     setSelectedIds([])
     setBulkArchiving(false)
@@ -138,9 +141,7 @@ export function FilterableAccountsTable({
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0 || !confirm(`Delete ${selectedIds.length} account(s)?`)) return
     setBulkDeleting(true)
-    for (const id of selectedIds) {
-      await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
-    }
+    for (const id of selectedIds) await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
     showToast(`Deleted ${selectedIds.length} account(s).`)
     setSelectedIds([])
     setBulkDeleting(false)

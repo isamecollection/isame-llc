@@ -6,7 +6,9 @@ export const Accounts: CollectionConfig = {
   access: {
     read: ({ req: { user } }) => {
       if (!user) return false
-      const roles = user.roles || []
+      const roles: string[] = user.roles || []
+
+      // Full access roles - can see everything
       if (
         roles.some((r: string) =>
           ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r),
@@ -14,15 +16,25 @@ export const Accounts: CollectionConfig = {
       ) {
         return true
       }
+
+      // Build OR filter for all assigned roles
+      // Multi-role users see accounts from ALL their roles
+      const filters: any[] = []
+
       if (roles.includes('court-agent')) {
-        return { and: [{ assignedCourtAgent: { equals: user.id } }] }
+        filters.push({ assignedCourtAgent: { equals: user.id } })
       }
       if (roles.includes('process-server')) {
-        return { and: [{ assignedProcessServer: { equals: user.id } }] }
+        filters.push({ assignedProcessServer: { equals: user.id } })
       }
       if (roles.includes('collector')) {
-        return { and: [{ assignedCollector: { equals: user.id } }] }
+        filters.push({ assignedCollector: { equals: user.id } })
       }
+
+      if (filters.length > 0) {
+        return { or: filters }
+      }
+
       return false
     },
     update: ({ req: { user } }) => {
@@ -87,7 +99,6 @@ export const Accounts: CollectionConfig = {
     { name: 'suitNo', type: 'text' },
     { name: 'statusWithIsame', type: 'text' },
     { name: 'method', type: 'text' },
-    // Fee Overrides
     {
       name: 'feeOverrides',
       type: 'group',
