@@ -22,12 +22,13 @@ export default async function AccountsPage() {
     activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
 
   const isManagement =
-    canViewAllAccounts(activeRole) && ['supervisor', 'crm-manager', 'admin'].includes(activeRole)
+    ['supervisor', 'crm-manager', 'admin'].includes(activeRole) && canViewAllAccounts(activeRole)
   const isClaimsOfficer = activeRole === 'claims-officer'
   const isCourtAgent = activeRole === 'court-agent'
   const isProcessServer = activeRole === 'process-server'
   const isCollector = activeRole === 'collector'
 
+  // Build filter based on active role
   const baseFilter: any = {}
 
   if (isManagement) {
@@ -35,13 +36,16 @@ export default async function AccountsPage() {
   } else if (isClaimsOfficer) {
     baseFilter.status = { equals: 'legal' }
   } else if (isCourtAgent) {
-    baseFilter.assignedCourtAgent = { equals: user.id }
+    // Court agent sees their assigned legal accounts
+    baseFilter.and = [{ assignedCourtAgent: { equals: user.id } }]
   } else if (isProcessServer) {
-    baseFilter.assignedProcessServer = { equals: user.id }
-    baseFilter.serviceStatus = { equals: 'pending_service' }
+    baseFilter.and = [
+      { assignedProcessServer: { equals: user.id } },
+      { serviceStatus: { equals: 'pending_service' } },
+    ]
   } else if (isCollector) {
-    baseFilter.status = { equals: 'active' }
-    baseFilter.assignedCollector = { equals: user.id }
+    // Collector sees their assigned active accounts
+    baseFilter.and = [{ status: { equals: 'active' } }, { assignedCollector: { equals: user.id } }]
   }
 
   let collectors: any[] = []
@@ -66,10 +70,10 @@ export default async function AccountsPage() {
 
   // Clients for filter dropdown
   let clientsForFilter: any[] = []
-  if (canViewAllAccounts(activeRole) && isManagement) {
+  if (canViewAllAccounts(activeRole)) {
     const res = await payload.find({ collection: 'clients', sort: 'name', limit: 9999 })
     clientsForFilter = res.docs
-  } else if (!canViewAllAccounts(activeRole)) {
+  } else {
     try {
       const accountsRes = await payload.find({
         collection: 'accounts',
