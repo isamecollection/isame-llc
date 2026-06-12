@@ -1,22 +1,17 @@
+// app/api/payments/route.ts
 import { getPayload } from '@/payload'
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { getHighestRole, canRecordPayment } from '@/lib/permissions'
+import { canRecordPayment } from '@/lib/permissions'
 
 // GET - List payments (for payment history table)
 export async function GET(request: NextRequest) {
-  // Authenticate
-  const payload = await getPayload()
-  const { user } = await payload.auth({ headers: await headers() })
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const { searchParams } = new URL(request.url)
   const sort = searchParams.get('sort') || '-createdAt'
   const limit = parseInt(searchParams.get('limit') || '20')
   const accountId = searchParams.get('where[account][equals]')
+
+  const payload = await getPayload()
 
   const where: any = {}
   if (accountId) where.account = { equals: accountId }
@@ -34,7 +29,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Create payment with balance update & receipt
 export async function POST(request: NextRequest) {
-  // Authenticate
+  // Authenticate & Authorize
   const payload = await getPayload()
   const { user } = await payload.auth({ headers: await headers() })
 
@@ -42,16 +37,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Authorize
+  // Check if ANY role can record payments (not just the highest)
   const roles: string[] = user.roles || []
-  const effectiveRole = getHighestRole(roles)
+  const hasPermission = roles.some((role) => canRecordPayment(role))
 
-  if (!canRecordPayment(effectiveRole)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  if (!hasPermission) {
+    return NextResponse.json(
+      {
+        error: 'Forbidden - No role with payment permission',
+      },
+      { status: 403 },
+    )
   }
 
   const body = await request.json()
-  // ... rest stays exactly the same
   const {
     account,
     amount,
@@ -74,11 +73,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get account BEFORE update to capture balance before
     const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
     const balanceBefore = accountDoc.currentBalance || 0
 
-    // Create the payment
     const payment = await payload.create({
       collection: 'payments',
       data: {
@@ -99,7 +96,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Update account balance
     const newPaymentsReceived = (accountDoc.paymentsReceived || 0) + parseFloat(amount)
     const balanceAfter = Math.max(0, balanceBefore - parseFloat(amount))
     const newStatus = balanceAfter <= 0 ? 'settled' : accountDoc.status
