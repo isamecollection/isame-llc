@@ -148,6 +148,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
             <PaymentHistory
               payments={payments.docs}
               accountBalance={account.currentBalance ?? undefined}
+              userRoles={roles}
             />
             <ScheduledPaymentsSection accountId={account.id} />
           </>
