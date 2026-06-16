@@ -14,7 +14,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Only management can void payments
   const roles: string[] = user.roles || []
   const hasPermission = roles.some((role) => isManagementRole(role))
 
@@ -30,7 +29,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Reason is required' }, { status: 400 })
     }
 
-    // Get the payment
     const payment = await payload.findByID({
       collection: 'payments',
       id,
@@ -44,7 +42,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Payment already refunded' }, { status: 400 })
     }
 
-    // Get the account - extract the ID properly
     const accountId =
       typeof payment.account === 'string'
         ? payment.account
@@ -59,11 +56,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       id: accountId,
     })
 
-    // Reverse the balance
     const newPaymentsReceived = Math.max(0, (account.paymentsReceived || 0) - payment.amount)
     const newBalance = (account.currentBalance || 0) + payment.amount
 
-    // Update account - only send primitive values, not objects
     await payload.update({
       collection: 'accounts',
       id: accountId,
@@ -73,7 +68,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
     })
 
-    // Update payment status to refunded
     const voidNote = `REFUNDED: ${reason} (Voided by ${user.email} on ${new Date().toISOString()})`
     const updatedNotes = payment.notes ? `${payment.notes}\n${voidNote}` : voidNote
 

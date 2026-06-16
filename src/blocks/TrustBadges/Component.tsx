@@ -31,17 +31,16 @@ const ICON_MAP: Record<string, LucideIcon> = {
 
 type TrustBadgeProps = {
   backgroundColor?: string | null
-  textColor?: string | null // section‑wide text colour
+  textColor?: string | null
   badges?: {
     icon: string
     text: string
     iconColor?: string | null
-    textColor?: string | null // per‑badge override
+    textColor?: string | null
     id?: string | null
   }[]
   columns?: string | null
   id?: string | null
-  // Theme settings from parent page
   settings?: {
     primaryColor?: string
     secondaryColor?: string
@@ -59,15 +58,20 @@ export const TrustBadgesBlockComponent: React.FC<TrustBadgeProps> = ({
   if (!badges || badges.length === 0) return null
 
   const cols = parseInt(columns || '4', 10)
-  const gridCols = [
-    'grid-cols-1',
-    'grid-cols-2',
-    'grid-cols-3',
-    'grid-cols-4',
-    'grid-cols-5',
-    'grid-cols-6',
-  ]
-  const colClass = gridCols[Math.min(cols, 6) - 1] || 'grid-cols-4'
+
+  // Responsive grid classes based on column count
+  const responsiveGridCols: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    5: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5',
+    6: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6',
+  }
+
+  const colClass =
+    responsiveGridCols[Math.min(Math.max(cols, 1), 6)] ||
+    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
 
   // Resolve theme primary colour (fallback to CSS variable)
   const primary = settings?.primaryColor || 'var(--color-primary)'
@@ -87,11 +91,8 @@ export const TrustBadgesBlockComponent: React.FC<TrustBadgeProps> = ({
             const resolvedTextColor = badge.textColor || textColor || 'var(--color-text)'
 
             return (
-              <div
-                key={badge.id || idx}
-                className="flex items-center gap-3 justify-center md:justify-start"
-              >
-                <IconComponent className="h-6 w-6 flex-shrink-0" style={{ color: iconColor }} />
+              <div key={badge.id || idx} className="flex items-start gap-3">
+                <IconComponent className="h-6 w-6 shrink-0 mt-0.5" style={{ color: iconColor }} />
                 <span className="text-sm" style={{ color: resolvedTextColor }}>
                   {badge.text}
                 </span>
