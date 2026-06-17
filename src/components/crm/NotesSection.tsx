@@ -1,7 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-export function NotesSection({ accountId }: { accountId: string }) {
+export function NotesSection({
+  accountId,
+  readOnly = false,
+}: {
+  accountId: string
+  readOnly?: boolean
+}) {
   const [notes, setNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState('')
@@ -45,24 +51,26 @@ export function NotesSection({ accountId }: { accountId: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Add note form – always visible at the top */}
-      <form onSubmit={handleAddNote} className="space-y-3">
-        <textarea
-          rows={4}
-          placeholder="Enter your note here…"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-y"
-        />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {submitting ? 'Saving…' : 'Save Note'}
-        </button>
-      </form>
+      {/* Add note form – only visible if not read-only */}
+      {!readOnly && (
+        <form onSubmit={handleAddNote} className="space-y-3">
+          <textarea
+            rows={4}
+            placeholder="Enter your note here…"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            required
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-y"
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {submitting ? 'Saving…' : 'Save Note'}
+          </button>
+        </form>
+      )}
 
       {/* Scrollable note history */}
       <div>

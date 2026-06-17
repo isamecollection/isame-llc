@@ -28,6 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
   'court-agent': 'Court Agent',
   'process-server': 'Process Server',
   collector: 'Collections',
+  client: 'Client',
 }
 
 const CRM_ROLES = [
@@ -38,6 +39,7 @@ const CRM_ROLES = [
   'court-agent',
   'process-server',
   'collector',
+  'client',
 ]
 
 export default async function CrmRootLayout({ children }: { children: React.ReactNode }) {
@@ -52,7 +54,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   const roles: string[] = user?.roles ?? []
   const activeRoleCookie = cookieStore.get('activeRole')?.value
 
-  // If user has multiple roles, cookie can override. Otherwise always use highest role.
   const crmRoles = roles.filter((r) => CRM_ROLES.includes(r))
   const hasMultipleRoles = crmRoles.length > 1
   const activeRole =
@@ -75,7 +76,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             <h2 className="text-xl font-bold mb-4">{ROLE_LABELS[activeRole] || 'CRM'}</h2>
             <NavLink href="/crm/dashboard">📊 Dashboard</NavLink>
             <NavLink href="/crm/accounts">📋 Accounts</NavLink>
-            <NavLink href="/crm/calendar">📅 Calendar</NavLink>
+            {activeRole !== 'client' && <NavLink href="/crm/calendar">📅 Calendar</NavLink>}
             {activeRole === 'admin' && <NavLink href="/crm/settings">⚙️ Settings</NavLink>}
             {showManagement && (
               <>
@@ -88,7 +89,10 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             {activeRole === 'supervisor' && (
               <NavLink href="/crm/supervisor/users">👥 Manage Team</NavLink>
             )}
-            {showReports && <NavLink href="/crm/reports">📊 Reports</NavLink>}
+            {/* Hide Reports for clients */}
+            {showReports && activeRole !== 'client' && (
+              <NavLink href="/crm/reports">📊 Reports</NavLink>
+            )}
             <div className="flex-1" />
             <NavLink href="/crm/profile">👤 My Profile</NavLink>
             <div className="border-t border-slate-700 pt-4 space-y-3">

@@ -5,10 +5,12 @@ export function AccountHeader({
   account,
   showMerge,
   userRole,
+  clientView = false, // new prop, default false
 }: {
   account: any
   showMerge?: boolean
   userRole?: string
+  clientView?: boolean // add type
 }) {
   const isProcessServer = userRole === 'process-server'
 
@@ -21,6 +23,11 @@ export function AccountHeader({
           {isProcessServer && (
             <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full mt-1 inline-block">
               Process Server View
+            </span>
+          )}
+          {clientView && (
+            <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full mt-1 inline-block">
+              Client View
             </span>
           )}
         </div>
@@ -84,6 +91,19 @@ export function AccountHeader({
             </span>
           )}
           {account.phone && <span>📞 {account.phone}</span>}
+        </div>
+      )}
+
+      {/* Assignments - HIDE for clients */}
+      {!clientView && (
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-4 text-sm text-gray-500">
+          {account.assignedCollector && <span>👤 Collector: {account.assignedCollector.name}</span>}
+          {account.assignedCourtAgent && (
+            <span>⚖️ Court Agent: {account.assignedCourtAgent.name}</span>
+          )}
+          {account.assignedProcessServer && (
+            <span>📋 Process Server: {account.assignedProcessServer.name}</span>
+          )}
         </div>
       )}
 

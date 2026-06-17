@@ -17,6 +17,16 @@ export const Accounts: CollectionConfig = {
         return true
       }
 
+      // Client role – only see accounts linked to their own client profile
+      if (roles.includes('client')) {
+        const clientId =
+          typeof user.clientProfile === 'string' ? user.clientProfile : user.clientProfile?.id
+        if (clientId) {
+          return { client: { equals: clientId } }
+        }
+        return false
+      }
+
       // Build OR filter for all assigned roles
       // Multi-role users see accounts from ALL their roles
       const filters: any[] = []

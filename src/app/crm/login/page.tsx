@@ -10,6 +10,7 @@ const ROLE_PRIORITY = [
   'court-agent',
   'process-server',
   'collector',
+  'client',
 ]
 
 export default function LoginPage() {

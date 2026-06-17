@@ -13,6 +13,7 @@ export function FilterableAccountsTable({
   courtAgents,
   assignmentType = 'collector',
   filterClients,
+  isClient = false, // new prop
 }: {
   baseFilter?: any
   showAssignment?: boolean
@@ -20,6 +21,7 @@ export function FilterableAccountsTable({
   courtAgents?: any[]
   assignmentType?: 'collector' | 'court-agent'
   filterClients?: any[]
+  isClient?: boolean // type added
 }) {
   const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +66,7 @@ export function FilterableAccountsTable({
       where.or = [{ debtorName: { contains: search } }, { accountNumber: { contains: search } }]
     }
     if (statusFilter) where.status = { equals: statusFilter }
-    if (clientId) where.client = { equals: clientId }
+    if (!isClient && clientId) where.client = { equals: clientId }
     if (minBalance)
       where.currentBalance = {
         ...(where.currentBalance || {}),
@@ -189,21 +191,24 @@ export function FilterableAccountsTable({
             <option value="closed">Closed</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">Client</label>
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-44 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
-          >
-            <option value="">All Clients</option>
-            {clients.map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Hide client filter for clients */}
+        {!isClient && (
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Client</label>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-44 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-sm"
+            >
+              <option value="">All Clients</option>
+              {clients.map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="block text-xs text-gray-500 mb-1">Min $</label>
           <input
@@ -232,7 +237,8 @@ export function FilterableAccountsTable({
         </button>
       </form>
 
-      {showAssignment && selectedIds.length > 0 && (
+      {/* Bulk actions bar – only for non‑clients */}
+      {!isClient && showAssignment && selectedIds.length > 0 && (
         <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg flex flex-wrap items-center gap-3">
           <span className="text-sm text-blue-800 dark:text-blue-200">
             {selectedIds.length} selected
@@ -283,7 +289,8 @@ export function FilterableAccountsTable({
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                 <tr>
-                  {showAssignment && (
+                  {/* Checkboxes only for non‑clients */}
+                  {!isClient && showAssignment && (
                     <th className="px-4 py-3 w-10">
                       <input
                         type="checkbox"
@@ -294,10 +301,13 @@ export function FilterableAccountsTable({
                   )}
                   <th className="px-4 py-3 font-semibold">Debtor</th>
                   <th className="px-4 py-3 font-semibold">Account #</th>
-                  <th className="px-4 py-3 font-semibold">Client</th>
+                  {/* Hide client column for clients – it's always the same */}
+                  {!isClient && <th className="px-4 py-3 font-semibold">Client</th>}
                   <th className="px-4 py-3 font-semibold">Balance</th>
-                  {showAssignment && <th className="px-4 py-3 font-semibold">{headerLabel}</th>}
-                  <th className="px-4 py-3 font-semibold">Process Server</th>
+                  {!isClient && showAssignment && (
+                    <th className="px-4 py-3 font-semibold">{headerLabel}</th>
+                  )}
+                  {!isClient && <th className="px-4 py-3 font-semibold">Process Server</th>}
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold"></th>
                 </tr>
@@ -308,7 +318,7 @@ export function FilterableAccountsTable({
                     key={account.id}
                     className="bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    {showAssignment && (
+                    {!isClient && showAssignment && (
                       <td className="px-4 py-3">
                         <input
                           type="checkbox"
@@ -319,9 +329,11 @@ export function FilterableAccountsTable({
                     )}
                     <td className="px-4 py-3">{account.debtorName || 'Unknown'}</td>
                     <td className="px-4 py-3">{account.accountNumber}</td>
-                    <td className="px-4 py-3">{(account.client as any)?.name || '—'}</td>
+                    {!isClient && (
+                      <td className="px-4 py-3">{(account.client as any)?.name || '—'}</td>
+                    )}
                     <td className="px-4 py-3">${account.currentBalance?.toLocaleString()}</td>
-                    {showAssignment && (
+                    {!isClient && showAssignment && (
                       <td className="px-4 py-3">
                         <AssigneeCell
                           accountId={account.id}
@@ -331,11 +343,13 @@ export function FilterableAccountsTable({
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3 text-xs">
-                      {typeof account.assignedProcessServer === 'object'
-                        ? account.assignedProcessServer?.name
-                        : account.assignedProcessServer || '—'}
-                    </td>
+                    {!isClient && (
+                      <td className="px-4 py-3 text-xs">
+                        {typeof account.assignedProcessServer === 'object'
+                          ? account.assignedProcessServer?.name
+                          : account.assignedProcessServer || '—'}
+                      </td>
+                    )}
                     <td className="px-4 py-3">{account.status}</td>
                     <td className="px-4 py-3">
                       <Link

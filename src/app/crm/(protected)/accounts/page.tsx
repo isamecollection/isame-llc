@@ -6,6 +6,7 @@ import {
   canViewAllAccounts,
   canAssignCollector,
   canAssignCourtAgent,
+  isClient,
 } from '@/lib/permissions'
 
 export default async function AccountsPage() {
@@ -27,11 +28,25 @@ export default async function AccountsPage() {
   const isCourtAgent = activeRole === 'court-agent'
   const isProcessServer = activeRole === 'process-server'
   const isCollector = activeRole === 'collector'
+  const isClientRole = isClient(activeRole) // check if active role is client
 
-  // Build filter based on active role - use FLAT properties, no nested 'and'
+  // Build filter based on active role
   const baseFilter: any = {}
 
-  if (isManagement) {
+  if (isClientRole) {
+    // Clients see only accounts linked to their own client profile
+    const userDoc = await payload.findByID({ collection: 'users', id: user.id })
+    const clientId =
+      typeof userDoc.clientProfile === 'string'
+        ? userDoc.clientProfile
+        : (userDoc.clientProfile as any)?.id
+
+    if (clientId) {
+      baseFilter.client = { equals: clientId }
+    } else {
+      baseFilter.client = { equals: 'none' } // no accounts if not linked
+    }
+  } else if (isManagement) {
     baseFilter.status = { equals: 'active' }
   } else if (isClaimsOfficer) {
     baseFilter.status = { equals: 'legal' }
@@ -45,8 +60,9 @@ export default async function AccountsPage() {
     baseFilter.assignedCollector = { equals: user.id }
   }
 
+  // Collectors / court agents dropdowns – not needed for clients
   let collectors: any[] = []
-  if (canAssignCollector(activeRole)) {
+  if (canAssignCollector(activeRole) && !isClientRole) {
     const res = await payload.find({
       collection: 'users',
       where: { roles: { contains: 'collector' } },
@@ -56,7 +72,7 @@ export default async function AccountsPage() {
   }
 
   let courtAgents: any[] = []
-  if (canAssignCourtAgent(activeRole)) {
+  if (canAssignCourtAgent(activeRole) && !isClientRole) {
     const res = await payload.find({
       collection: 'users',
       where: { roles: { contains: 'court-agent' } },
@@ -70,7 +86,8 @@ export default async function AccountsPage() {
   if (canViewAllAccounts(activeRole)) {
     const res = await payload.find({ collection: 'clients', sort: 'name', limit: 9999 })
     clientsForFilter = res.docs
-  } else {
+  } else if (!isClientRole) {
+    // For limited roles, fetch clients from their filtered accounts
     try {
       const accountsRes = await payload.find({
         collection: 'accounts',
@@ -94,7 +111,7 @@ export default async function AccountsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Accounts</h1>
+      <h1 className="text-2xl font-bold mb-6">{isClientRole ? 'My Accounts' : 'Accounts'}</h1>
       <FilterableAccountsTable
         baseFilter={baseFilter}
         showAssignment={canAssignCollector(activeRole) || canAssignCourtAgent(activeRole)}
@@ -102,6 +119,7 @@ export default async function AccountsPage() {
         courtAgents={courtAgents}
         assignmentType={isClaimsOfficer ? 'court-agent' : 'collector'}
         filterClients={clientsForFilter}
+        isClient={isClientRole} // new prop to disable edit/delete
       />
     </div>
   )

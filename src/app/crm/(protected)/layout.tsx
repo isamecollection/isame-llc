@@ -29,6 +29,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     'court-agent',
     'process-server',
     'claims-officer',
+    'client', // ← added
   ]
 
   if (!user || !user.roles?.some((r) => allowedRoles.includes(r))) {

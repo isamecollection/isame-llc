@@ -6,6 +6,7 @@ export const ROLE_PRIORITY = [
   'court-agent',
   'process-server',
   'collector',
+  'client', // ← m
 ] as const
 
 export type CRMRole = (typeof ROLE_PRIORITY)[number]
@@ -14,8 +15,15 @@ export function getHighestRole(roles: string[]): string {
   return ROLE_PRIORITY.find((r) => roles.includes(r)) || 'collector'
 }
 
-// Permission checks - all take activeRole (the currently selected role)
+// ── Client helpers ──
+export function isClient(activeRole: string): boolean {
+  return activeRole === 'client'
+}
+
+// ── Permission checks ──
+
 export function canViewAllAccounts(activeRole: string): boolean {
+  // Clients never see all accounts; they are filtered later
   return ['admin', 'crm-manager', 'supervisor', 'claims-officer'].includes(activeRole)
 }
 
@@ -32,7 +40,8 @@ export function canImportAccounts(activeRole: string): boolean {
 }
 
 export function canViewReports(activeRole: string): boolean {
-  return ['admin', 'crm-manager', 'supervisor', 'claims-officer'].includes(activeRole)
+  // Clients can view reports for their own accounts (filtered elsewhere)
+  return ['admin', 'crm-manager', 'supervisor', 'claims-officer', 'client'].includes(activeRole)
 }
 
 export function canManageLegal(activeRole: string): boolean {
@@ -68,13 +77,14 @@ export function canViewAuditLogs(activeRole: string): boolean {
 }
 
 export function isLimitedView(activeRole: string): boolean {
+  // Clients are not "limited view" in the same way; they have a custom restricted view
   return ['process-server', 'claims-officer', 'court-agent'].includes(activeRole)
 }
 
 export function isManagementRole(activeRole: string): boolean {
   return ['admin', 'crm-manager', 'supervisor'].includes(activeRole)
 }
-// TO THIS:
+
 export function canViewAgentStats(activeRole: string): boolean {
   return ['admin', 'crm-manager', 'supervisor'].includes(activeRole)
 }
