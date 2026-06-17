@@ -212,7 +212,7 @@ export default async function ClientDashboard() {
       {/* Account List */}
       <div className="flex items-center justify-between mt-8 mb-3">
         <h2 className="text-xl font-semibold">📋 Your Accounts</h2>
-        <ClientReportActions clientId={data.clientId} accounts={data.accounts} />
+        <ClientReportActions accounts={data.accounts} />
       </div>
 
       {data.accounts.length === 0 ? (

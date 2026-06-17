@@ -1,6 +1,10 @@
 'use client'
 
-export function ClientReportActions({ clientId, accounts }: { clientId: string; accounts: any[] }) {
+import { useState } from 'react'
+
+export function ClientReportActions({ accounts }: { accounts: any[] }) {
+  const [downloading, setDownloading] = useState(false)
+
   const handleExportCSV = () => {
     const headers = [
       'Debtor Name',
@@ -31,6 +35,27 @@ export function ClientReportActions({ clientId, accounts }: { clientId: string; 
     URL.revokeObjectURL(url)
   }
 
+  const handleDownloadPDF = async () => {
+    setDownloading(true)
+    try {
+      const response = await fetch('/api/reports/client-pdf')
+      if (!response.ok) throw new Error('Failed to generate PDF')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'portfolio-report.pdf'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      alert('Could not download the report. Please try again.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="flex gap-2">
       <button
@@ -39,13 +64,13 @@ export function ClientReportActions({ clientId, accounts }: { clientId: string; 
       >
         📥 Download CSV
       </button>
-      <a
-        href={`/api/client-report?clientId=${clientId}`}
-        target="_blank"
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+      <button
+        onClick={handleDownloadPDF}
+        disabled={downloading}
+        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
       >
-        📄 Export PDF
-      </a>
+        {downloading ? '⏳ Generating…' : '📄 Export PDF'}
+      </button>
     </div>
   )
 }

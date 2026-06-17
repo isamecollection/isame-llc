@@ -10,6 +10,7 @@ import { LogoutButton } from '@/components/crm/LogoutButton'
 import { SessionTimeout } from '@/components/crm/SessionTimeout'
 import { OfflineIndicator } from '@/components/crm/OfflineIndicator'
 import { ActiveRoleFix } from '@/components/crm/ActiveRoleFix'
+import { PWAInstallButton } from '@/components/crm/PWAInstallButton'
 import Link from 'next/link'
 import {
   getHighestRole,
@@ -94,6 +95,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
               <NavLink href="/crm/reports">📊 Reports</NavLink>
             )}
             <div className="flex-1" />
+            <PWAInstallButton />
             <NavLink href="/crm/profile">👤 My Profile</NavLink>
             <div className="border-t border-slate-700 pt-4 space-y-3">
               <ThemeToggle />

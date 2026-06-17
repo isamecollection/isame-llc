@@ -34,5 +34,9 @@
     "next-sitemap.config.cjs",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "src/app/api/payments/void"
+]
 }
