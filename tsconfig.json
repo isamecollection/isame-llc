@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     ".next",
-    "src/app/api/payments/void"
+    "src/app/api/payments/void",
+    "src/app/api/payments/receipt/route.ts"
 ]
 }
