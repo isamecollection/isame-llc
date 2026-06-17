@@ -117,6 +117,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const tabs: { label: string; content: React.ReactNode }[] = []
 
   if (clientView) {
+    // ── Client‑specific tabs ──
     tabs.push(
       { label: 'Report', content: <ClientAccountReport accountId={account.id} /> },
       {
@@ -143,9 +144,125 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       },
     )
   } else if (limitedView) {
-    // ... existing limited view code (unchanged) ...
+    // ── Limited view (process-server, court-agent, claims-officer) ──
+    if (activeRole === 'process-server') {
+      tabs.push({ label: 'Contact', content: <ContactInfoTab account={account} /> })
+    }
+    tabs.push(
+      { label: 'Notes', content: <NotesSection accountId={account.id} /> },
+      { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
+    )
+    if (activeRole === 'process-server' || activeRole === 'court-agent' || activeRole === 'admin') {
+      tabs.push({
+        label: 'Service',
+        content: (
+          <div className="space-y-6">
+            {activeRole === 'process-server' && (
+              <AffidavitUpload accountId={account.id} currentAffidavit={account.affidavitProof} />
+            )}
+            <ServiceAttemptsSection
+              accountId={account.id}
+              readOnly={activeRole !== 'process-server'}
+            />
+          </div>
+        ),
+      })
+    }
+    if (manageLegal) {
+      tabs.push({
+        label: 'Legal',
+        content: (
+          <div className="space-y-6">
+            <LegalCaseView accountId={account.id} />
+            <LegalCaseForm accountId={account.id} />
+            <CourtEventsManager accountId={account.id} />
+          </div>
+        ),
+      })
+    }
   } else {
-    // ... existing full access tabs (unchanged) ...
+    // ── Full access (admin, crm-manager, supervisor, collector, etc.) ──
+    tabs.push(
+      { label: 'Agreements', content: <AgreementsSection accountId={account.id} /> },
+      {
+        label: 'Payments',
+        content: (
+          <>
+            <PaymentHistory
+              payments={payments.docs}
+              accountBalance={account.currentBalance ?? undefined}
+              userRoles={roles}
+            />
+            <ScheduledPaymentsSection accountId={account.id} />
+          </>
+        ),
+      },
+      {
+        label: 'Actions',
+        content: (
+          <div className="space-y-6">
+            <ActionsSection accountId={account.id} currentBalance={account.currentBalance ?? 0} />
+            <SendToLegalButton accountId={account.id} />
+            {showCourtCharges && (
+              <TriggerCourtCharges
+                accountId={account.id}
+                townCity={account.townCity || undefined}
+              />
+            )}
+          </div>
+        ),
+      },
+      { label: 'Emails', content: <EmailsSection accountId={account.id} /> },
+      { label: 'Calls', content: <CallsSection accountId={account.id} /> },
+      { label: 'Notes', content: <NotesSection accountId={account.id} /> },
+      { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
+      {
+        label: 'Service',
+        content: (
+          <div className="space-y-6">
+            {showProcessServerAssign && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <h4 className="font-semibold mb-3">Assign Process Server</h4>
+                <AssignProcessServer accountId={account.id} processServers={processServers} />
+              </div>
+            )}
+            <ServiceAttemptsSection accountId={account.id} />
+          </div>
+        ),
+      },
+      {
+        label: 'Legal',
+        content: (
+          <div className="space-y-6">
+            <LegalCaseView accountId={account.id} />
+            {manageLegal && (
+              <>
+                <LegalCaseForm accountId={account.id} />
+                <CourtEventsManager accountId={account.id} />
+              </>
+            )}
+          </div>
+        ),
+      },
+      {
+        label: 'Edit',
+        content: (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-6">
+            <EditAccountForm
+              account={account}
+              clients={clients}
+              userRole={activeRole || undefined}
+            />
+            <hr className="border-gray-200 dark:border-gray-700" />
+            <div>
+              <h4 className="text-sm font-semibold text-red-600 mb-2">Danger Zone</h4>
+              <ArchiveAccountButton accountId={account.id} archived={account.archived ?? false} />
+              <DeleteAccountButton accountId={account.id} />
+            </div>
+          </div>
+        ),
+      },
+    )
   }
 
   return (

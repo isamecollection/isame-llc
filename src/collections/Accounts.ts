@@ -4,39 +4,79 @@ export const Accounts: CollectionConfig = {
   slug: 'accounts',
   admin: { hidden: true },
   access: {
-    read: ({ req: { user } }) => {
+    read: ({ req }) => {
+      const user = req.user
       if (!user) return false
       const roles: string[] = user.roles || []
 
-      // Full access roles
+      // ── Extract active role from the request cookie ──
+      let activeRole: string | null = null
+      try {
+        // Payload 3 with Next.js adapter → req.headers is a Headers object
+        const cookieHeader =
+          typeof req.headers.get === 'function'
+            ? req.headers.get('cookie')
+            : (req.headers as any).cookie // fallback for Express / older adapters
+
+        if (cookieHeader) {
+          const cookie = cookieHeader
+            .split(';')
+            .find((c: string) => c.trim().startsWith('activeRole='))
+          if (cookie) {
+            activeRole = cookie.split('=')[1]
+          }
+        }
+      } catch (_) {}
+
+      // ── If a limited role is explicitly chosen, enforce its filter ──
+      if (activeRole && roles.includes(activeRole)) {
+        // Client
+        if (activeRole === 'client') {
+          const clientId =
+            typeof user.clientProfile === 'string'
+              ? user.clientProfile
+              : (user.clientProfile as any)?.id
+          return clientId ? ({ client: { equals: clientId } } as Where) : false
+        }
+
+        // Collector – only assigned accounts
+        if (activeRole === 'collector') {
+          return { assignedCollector: { equals: user.id } } as Where
+        }
+
+        // Court agent – only assigned accounts
+        if (activeRole === 'court-agent') {
+          return { assignedCourtAgent: { equals: user.id } } as Where
+        }
+
+        // Process server – only assigned accounts
+        if (activeRole === 'process-server') {
+          return { assignedProcessServer: { equals: user.id } } as Where
+        }
+
+        // Claims officer – only legal accounts
+        if (activeRole === 'claims-officer') {
+          return { status: { equals: 'legal' } } as Where
+        }
+
+        // Supervisor / admin / crm‑manager → fall through to full access
+      }
+
+      // ── Full access for management roles (when no limited role is active) ──
       if (roles.some((r) => ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r))) {
         return true
       }
 
-      // Client role
-      if (roles.includes('client')) {
-        const clientId =
-          typeof user.clientProfile === 'string' ? user.clientProfile : user.clientProfile?.id
-        if (clientId) {
-          return { client: { equals: clientId } } as Where
-        }
-        return false
-      }
-
-      // Other limited roles
+      // ── Fallback: no active role cookie and no management roles → multi‑role logic ──
       const filters: any[] = []
-      if (roles.includes('court-agent')) {
-        filters.push({ assignedCourtAgent: { equals: user.id } })
-      }
-      if (roles.includes('process-server')) {
+      if (roles.includes('court-agent')) filters.push({ assignedCourtAgent: { equals: user.id } })
+      if (roles.includes('process-server'))
         filters.push({ assignedProcessServer: { equals: user.id } })
-      }
-      if (roles.includes('collector')) {
-        filters.push({ assignedCollector: { equals: user.id } })
-      }
+      if (roles.includes('collector')) filters.push({ assignedCollector: { equals: user.id } })
 
       return filters.length > 0 ? ({ or: filters } as Where) : false
     },
+
     update: ({ req: { user } }) => {
       if (!user) return false
       return (
@@ -53,10 +93,13 @@ export const Accounts: CollectionConfig = {
         ) ?? false
       )
     },
+
     create: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
+
     delete: ({ req: { user } }) =>
       user?.roles?.some((r) => ['admin', 'crm-manager'].includes(r)) ?? false,
   },
+
   fields: [
     { name: 'accountNumber', type: 'text', required: true, unique: true },
     { name: 'debtorName', type: 'text' },
