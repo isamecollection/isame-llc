@@ -1,4 +1,4 @@
-import { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 
 export const Accounts: CollectionConfig = {
   slug: 'accounts',
@@ -8,29 +8,23 @@ export const Accounts: CollectionConfig = {
       if (!user) return false
       const roles: string[] = user.roles || []
 
-      // Full access roles - can see everything
-      if (
-        roles.some((r: string) =>
-          ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r),
-        )
-      ) {
+      // Full access roles
+      if (roles.some((r) => ['admin', 'crm-manager', 'claims-officer', 'supervisor'].includes(r))) {
         return true
       }
 
-      // Client role – only see accounts linked to their own client profile
+      // Client role
       if (roles.includes('client')) {
         const clientId =
           typeof user.clientProfile === 'string' ? user.clientProfile : user.clientProfile?.id
         if (clientId) {
-          return { client: { equals: clientId } }
+          return { client: { equals: clientId } } as Where
         }
         return false
       }
 
-      // Build OR filter for all assigned roles
-      // Multi-role users see accounts from ALL their roles
+      // Other limited roles
       const filters: any[] = []
-
       if (roles.includes('court-agent')) {
         filters.push({ assignedCourtAgent: { equals: user.id } })
       }
@@ -41,11 +35,7 @@ export const Accounts: CollectionConfig = {
         filters.push({ assignedCollector: { equals: user.id } })
       }
 
-      if (filters.length > 0) {
-        return { or: filters }
-      }
-
-      return false
+      return filters.length > 0 ? ({ or: filters } as Where) : false
     },
     update: ({ req: { user } }) => {
       if (!user) return false
