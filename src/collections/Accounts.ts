@@ -71,7 +71,10 @@ export const Accounts: CollectionConfig = {
       const filters: any[] = []
       if (roles.includes('court-agent')) filters.push({ assignedCourtAgent: { equals: user.id } })
       if (roles.includes('process-server'))
-        filters.push({ assignedProcessServer: { equals: user.id } })
+        filters.push({
+          assignedProcessServer: { equals: user.id },
+          serviceStatus: { equals: 'pending_service' },
+        })
       if (roles.includes('collector')) filters.push({ assignedCollector: { equals: user.id } })
 
       return filters.length > 0 ? ({ or: filters } as Where) : false
