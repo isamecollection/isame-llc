@@ -2,6 +2,7 @@ import { getPayload } from '@/payload'
 import { headers, cookies } from 'next/headers'
 import { getHighestRole } from '@/lib/permissions'
 import { StatCard } from '@/components/crm/StatCard'
+import { getActiveRole } from '@/lib/getActiveRole'
 import ClientDashboardCharts from '@/components/crm/dashboards/ClientDashboardCharts'
 
 export default async function ClientPortfolio() {
@@ -13,10 +14,7 @@ export default async function ClientPortfolio() {
 
   const cookieStore = await cookies()
   const roles: string[] = user.roles ?? []
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
-  const activeRole =
-    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
-
+  const activeRole = await getActiveRole(user)
   // Only clients should access this report
   if (activeRole !== 'client') {
     return <p className="text-gray-500">This report is only available to clients.</p>

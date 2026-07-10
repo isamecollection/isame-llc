@@ -24,9 +24,9 @@ import { AssignProcessServer } from '@/components/crm/AssignProcessServer'
 import { AffidavitUpload } from '@/components/crm/AffidavitUpload'
 import { TriggerCourtCharges } from '@/components/crm/TriggerCourtCharges'
 import { headers, cookies } from 'next/headers'
+import { getActiveRole } from '@/lib/getActiveRole'
 import { logAudit } from '@/lib/auditLogger'
 import {
-  getHighestRole,
   isLimitedView,
   canManageLegal,
   canAssignProcessServer,
@@ -48,6 +48,9 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const { user } = await payload.auth({ headers: await headers() })
   if (!user) return <p className="text-gray-500">You must be logged in to view this account.</p>
 
+  // Keep roles for PaymentHistory
+  const roles: string[] = user?.roles ?? []
+
   await logAudit({
     user,
     action: 'view',
@@ -56,11 +59,8 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     documentName: account.debtorName || account.accountNumber,
   })
 
-  const cookieStore = await cookies()
-  const roles: string[] = user?.roles ?? []
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
-  const activeRole =
-    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
+  // Use the centralized role detection
+  const activeRole = await getActiveRole(user)
 
   const clientView = activeRole === 'client'
   const limitedView = isLimitedView(activeRole)

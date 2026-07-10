@@ -41,7 +41,14 @@ export default function LoginPage() {
         const user = await userRes.json()
         const roles: string[] = user.roles || []
         const defaultRole = ROLE_PRIORITY.find((r) => roles.includes(r)) || 'collector'
-        document.cookie = `activeRole=${defaultRole}; path=/crm; SameSite=Lax`
+
+        // Clear any old cookies
+        document.cookie =
+          'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+        document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+
+        // Set the new cookie
+        document.cookie = `x-active-role=${defaultRole}; path=/; SameSite=Lax`
       }
     } catch {}
 

@@ -1,5 +1,6 @@
 import { getPayload } from '@/payload'
 import { headers, cookies } from 'next/headers'
+import { getActiveRole } from '@/lib/getActiveRole'
 import { CalendarView } from '@/components/crm/CalendarView'
 
 export default async function CalendarPage() {
@@ -9,7 +10,7 @@ export default async function CalendarPage() {
   if (!user) return <p className="text-gray-500">Unauthorized</p>
 
   const cookieStore = await cookies()
-  const activeRole = cookieStore.get('activeRole')?.value || user.roles?.[0] || 'collector'
+  const activeRole = await getActiveRole(user)
 
   // Get legal cases with court events
   let legalCases: any[] = []

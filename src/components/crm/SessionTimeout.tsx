@@ -34,8 +34,13 @@ export function SessionTimeout() {
     try {
       await fetch('/api/users/logout', { method: 'POST' })
     } catch {}
-    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
+    // Clear old cookies (both paths) and the new one
+    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = 'x-active-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
     document.cookie = 'payload-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
     router.push('/crm/login')
   }
 

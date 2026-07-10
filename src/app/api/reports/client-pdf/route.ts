@@ -1,9 +1,9 @@
 // src/app/api/reports/client-pdf/route.ts
 import { getPayload } from '@/payload'
-import { headers, cookies } from 'next/headers'
+import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
-import { getHighestRole } from '@/lib/permissions'
+import { getActiveRole } from '@/lib/getActiveRole'
 
 export async function GET(request: Request) {
   const payload = await getPayload()
@@ -12,11 +12,8 @@ export async function GET(request: Request) {
 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const cookieStore = await cookies()
-  const roles: string[] = user.roles ?? []
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
-  const activeRole =
-    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
+  // Use the shared helper that reads x-active-role cookie
+  const activeRole = await getActiveRole(user)
 
   // ── Determine the target client ID ──
   const { searchParams } = new URL(request.url)

@@ -1,6 +1,5 @@
 import { cookies, headers } from 'next/headers'
 import { getPayload } from '@/payload'
-import { getHighestRole } from '@/lib/permissions'
 import CollectorDashboard from '@/components/crm/dashboards/CollectorDashboard'
 import ManagerDashboard from '@/components/crm/dashboards/ManagerDashboard'
 import AdminDashboard from '@/components/crm/dashboards/AdminDashboard'
@@ -8,6 +7,7 @@ import SupervisorDashboard from '@/components/crm/dashboards/SupervisorDashboard
 import CourtAgentDashboard from '@/components/crm/dashboards/CourtAgentDashboard'
 import ProcessServerDashboard from '@/components/crm/dashboards/ProcessServerDashboard'
 import ClaimsOfficerDashboard from '@/components/crm/dashboards/ClaimsOfficerDashboard'
+import { getActiveRole } from '@/lib/getActiveRole'
 import ClientDashboard from '@/components/crm/dashboards/ClientDashboard'
 
 const CRM_ROLES = [
@@ -32,10 +32,7 @@ export default async function DashboardPage() {
   const hasMultipleRoles = crmRoles.length > 1
 
   // If multi-role user, cookie can override. Otherwise use highest priority.
-  const activeRole =
-    hasMultipleRoles && cookieStore.get('activeRole')?.value
-      ? cookieStore.get('activeRole')?.value
-      : getHighestRole(roles)
+  const activeRole = await getActiveRole(user)
 
   if (activeRole === 'collector') return <CollectorDashboard />
   if (activeRole === 'crm-manager') return <ManagerDashboard />
