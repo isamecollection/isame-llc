@@ -5,6 +5,7 @@ import { CollectorProductivity } from '@/components/crm/reports/CollectorProduct
 import ClientPortfolio from '@/components/crm/reports/ClientPortfolio'
 import { ManagerClientReport } from '@/components/crm/reports/ManagerClientReport'
 import { IndividualClientReport } from '@/components/crm/reports/IndividualClientReport'
+import { ManagerClientPortfolioReport } from '@/components/crm/reports/ManagerClientPortfolioReport'
 import { getHighestRole } from '@/lib/permissions'
 import { redirect } from 'next/navigation'
 
@@ -29,16 +30,16 @@ export default async function ReportsPage() {
   let tabs: { label: string; content: React.ReactNode }[] = []
 
   if (isManagement) {
-    // Management sees the full suite (no raw client portfolio)
     tabs = [
       { label: 'Collector Productivity', content: <CollectorProductivity /> },
       { label: 'Company Report', content: <ManagerClientReport /> },
       { label: 'Client Report', content: <IndividualClientReport /> },
+      // 🆕 Portfolio report for any client
+      { label: 'Client Portfolio Report', content: <ManagerClientPortfolioReport /> },
     ]
   } else if (isCollector || isCourtAgent) {
     tabs = [{ label: 'My Performance', content: <CollectorProductivity /> }]
   } else if (isClient) {
-    // Client only sees their own portfolio (charts + summary)
     tabs = [{ label: 'Portfolio', content: <ClientPortfolio /> }]
   } else {
     tabs = [

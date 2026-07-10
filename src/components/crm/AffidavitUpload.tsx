@@ -45,9 +45,11 @@ const compressImage = async (file: File, maxWidth = 1200): Promise<File> => {
 export function AffidavitUpload({
   accountId,
   currentAffidavit,
+  readOnly = false,
 }: {
   accountId: string
   currentAffidavit?: any
+  readOnly?: boolean
 }) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -109,6 +111,27 @@ export function AffidavitUpload({
     setUploading(false)
   }
 
+  // ── Read‑only view ──
+  if (readOnly) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <h4 className="font-semibold mb-3">📜 Affidavit of Service</h4>
+        {currentAffidavit?.url ? (
+          <a
+            href={currentAffidavit.url}
+            target="_blank"
+            className="text-blue-600 hover:underline text-sm"
+          >
+            📄 View Current Affidavit
+          </a>
+        ) : (
+          <p className="text-sm text-gray-500">No affidavit uploaded yet.</p>
+        )}
+      </div>
+    )
+  }
+
+  // ── Full upload UI (for process‑server) ──
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
       <h4 className="font-semibold mb-3">📜 Affidavit of Service</h4>

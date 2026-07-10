@@ -12,8 +12,10 @@ export function LogoutButton() {
       // Continue even if API call fails
     }
 
-    // Clear the active role cookie
-    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    // Clear both old and new active role cookies
+    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = 'x-active-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
 
     // Redirect to login
     router.push('/crm/login')

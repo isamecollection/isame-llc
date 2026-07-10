@@ -4,6 +4,6 @@ import type { User } from '@/payload-types'
 type isAuthenticated = (args: AccessArgs<User>) => boolean
 
 export const authenticated: isAuthenticated = ({ req: { user } }) => {
-  console.log('authenticated check - user:', user) // 👈 Add this log
+  //console.log('authenticated check - user:', user) // 👈 Add this log
   return Boolean(user)
 }

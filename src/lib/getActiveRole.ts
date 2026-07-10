@@ -4,10 +4,15 @@ import { getHighestRole } from '@/lib/permissions'
 export async function getActiveRole(user: any): Promise<string> {
   const roles: string[] = user?.roles ?? []
   const cookieStore = await cookies()
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
+  const cookie = cookieStore.get('x-active-role')?.value
 
-  // If cookie points to a valid role, use it; otherwise fall back to highest priority
-  return activeRoleCookie && roles.includes(activeRoleCookie)
-    ? activeRoleCookie
+  console.log('━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('User roles:', roles)
+  console.log('x-active-role cookie:', cookie)
+  console.log('Highest role fallback:', getHighestRole(roles))
+  console.log('━━━━━━━━━━━━━━━━━━━━━━')
+
+  return cookie && roles.includes(cookie)
+    ? cookie
     : getHighestRole(roles)
 }

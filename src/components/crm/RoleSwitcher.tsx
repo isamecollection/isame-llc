@@ -1,7 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-
 export function RoleSwitcher({
   roles,
   activeRole,
@@ -9,12 +7,9 @@ export function RoleSwitcher({
   roles: string[]
   activeRole: string | null
 }) {
-  const [currentRole, setCurrentRole] = useState(activeRole ?? '')
-
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newRole = e.target.value
-    setCurrentRole(newRole)
-    document.cookie = `activeRole=${newRole}; path=/crm; SameSite=Lax`
+    document.cookie = 'x-active-role=' + newRole + '; path=/; SameSite=Lax'
     window.location.reload()
   }
 
@@ -22,7 +17,7 @@ export function RoleSwitcher({
 
   return (
     <select
-      value={currentRole}
+      value={activeRole ?? ''}
       onChange={handleChange}
       className="w-full px-3 py-2 rounded-lg bg-slate-700 text-white text-sm border border-slate-600 focus:ring-2 focus:ring-blue-500"
     >

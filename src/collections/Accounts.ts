@@ -21,7 +21,7 @@ export const Accounts: CollectionConfig = {
         if (cookieHeader) {
           const cookie = cookieHeader
             .split(';')
-            .find((c: string) => c.trim().startsWith('activeRole='))
+            .find((c: string) => c.trim().startsWith('x-active-role='))
           if (cookie) {
             activeRole = cookie.split('=')[1]
           }

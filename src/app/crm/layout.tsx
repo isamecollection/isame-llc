@@ -9,7 +9,6 @@ import { QuickLogPopup } from '@/components/QuickLogPopup'
 import { LogoutButton } from '@/components/crm/LogoutButton'
 import { SessionTimeout } from '@/components/crm/SessionTimeout'
 import { OfflineIndicator } from '@/components/crm/OfflineIndicator'
-import { ActiveRoleFix } from '@/components/crm/ActiveRoleFix'
 import { PWAInstallButton } from '@/components/crm/PWAInstallButton'
 import Link from 'next/link'
 import {
@@ -53,7 +52,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   if (!user || pathname === '/crm/login') return <>{children}</>
 
   const roles: string[] = user?.roles ?? []
-  const activeRoleCookie = cookieStore.get('activeRole')?.value
+  const activeRoleCookie = cookieStore.get('x-active-role')?.value   // ← changed to x-active-role
 
   const crmRoles = roles.filter((r) => CRM_ROLES.includes(r))
   const hasMultipleRoles = crmRoles.length > 1
@@ -90,7 +89,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             {activeRole === 'supervisor' && (
               <NavLink href="/crm/supervisor/users">👥 Manage Team</NavLink>
             )}
-            {/* Hide Reports for clients */}
             {showReports && activeRole !== 'client' && (
               <NavLink href="/crm/reports">📊 Reports</NavLink>
             )}
@@ -128,7 +126,6 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
         </div>
         <QuickLogPopup />
         <SessionTimeout />
-        <ActiveRoleFix roles={roles} currentCookie={activeRoleCookie} />
       </QuickLogProvider>
     </>
   )

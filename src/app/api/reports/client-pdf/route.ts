@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import jsPDF from 'jspdf'
 import { getHighestRole } from '@/lib/permissions'
 
-export async function GET() {
+export async function GET(request: Request) {
   const payload = await getPayload()
   const headersList = await headers()
   const { user } = await payload.auth({ headers: headersList })
@@ -18,25 +18,32 @@ export async function GET() {
   const activeRole =
     activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
 
-  // Only clients can access this report
-  if (activeRole !== 'client') {
+  // ── Determine the target client ID ──
+  const { searchParams } = new URL(request.url)
+  const queryClientId = searchParams.get('clientId')
+  let clientId: string | null = null
+
+  if (activeRole === 'client') {
+    // Client: use their own linked portfolio
+    const userDoc = await payload.findByID({ collection: 'users', id: user.id })
+    clientId =
+      typeof userDoc.clientProfile === 'string'
+        ? userDoc.clientProfile
+        : (userDoc.clientProfile as any)?.id
+
+    if (!clientId) {
+      return NextResponse.json({ error: 'No client profile linked' }, { status: 400 })
+    }
+  } else if (['admin', 'crm-manager'].includes(activeRole) && queryClientId) {
+    // Manager: use the requested client ID
+    clientId = queryClientId
+  } else {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Get the linked client ID from the user’s clientProfile
-  const userDoc = await payload.findByID({ collection: 'users', id: user.id })
-  const clientId =
-    typeof userDoc.clientProfile === 'string'
-      ? userDoc.clientProfile
-      : (userDoc.clientProfile as any)?.id
-
-  if (!clientId) {
-    return NextResponse.json({ error: 'No client profile linked' }, { status: 400 })
-  }
-
+  // ── Fetch client and accounts (same as before) ──
   const client = await payload.findByID({ collection: 'clients', id: clientId })
 
-  // Fetch all accounts belonging to the client
   const { docs: accounts } = await payload.find({
     collection: 'accounts',
     where: { client: { equals: clientId } },
@@ -47,7 +54,6 @@ export async function GET() {
 
   const accountIds = accounts.map((a) => a.id)
 
-  // Fetch completed payments and legal cases for these accounts
   const [paymentsRes, legalCasesRes] = await Promise.all([
     payload.find({
       collection: 'payments',
@@ -73,7 +79,7 @@ export async function GET() {
   const legalAccounts = accounts.filter((a) => a.status === 'legal').length
   const settledAccounts = accounts.filter((a) => a.status === 'settled').length
   const paidAccounts = accounts.filter((a) => a.status === 'paid').length
-  const pendingAccounts = activeAccounts + legalAccounts // accounts not yet settled/paid
+  const pendingAccounts = activeAccounts + legalAccounts
 
   const collectionRate = totalCollectable > 0 ? (totalCollected / totalCollectable) * 100 : 0
   const activeLegalCases = legalCases.filter((c) => c.status !== 'closed').length

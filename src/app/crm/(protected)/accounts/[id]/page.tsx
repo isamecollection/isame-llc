@@ -152,13 +152,31 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       { label: 'Notes', content: <NotesSection accountId={account.id} /> },
       { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
     )
-    if (activeRole === 'process-server' || activeRole === 'court-agent' || activeRole === 'admin') {
+
+    // 📜 Service tab – now includes claims-officer, court-agent, admin
+    if (
+      activeRole === 'process-server' ||
+      activeRole === 'court-agent' ||
+      activeRole === 'claims-officer' ||
+      activeRole === 'admin'
+    ) {
       tabs.push({
         label: 'Service',
         content: (
           <div className="space-y-6">
+            {/* Process server gets the upload form */}
             {activeRole === 'process-server' && (
               <AffidavitUpload accountId={account.id} currentAffidavit={account.affidavitProof} />
+            )}
+            {/* Court agent, claims officer, and admin get read‑only view */}
+            {(activeRole === 'court-agent' ||
+              activeRole === 'claims-officer' ||
+              activeRole === 'admin') && (
+              <AffidavitUpload
+                accountId={account.id}
+                currentAffidavit={account.affidavitProof}
+                readOnly={true}
+              />
             )}
             <ServiceAttemptsSection
               accountId={account.id}
@@ -168,6 +186,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         ),
       })
     }
+
     if (manageLegal) {
       tabs.push({
         label: 'Legal',
@@ -226,6 +245,12 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 <AssignProcessServer accountId={account.id} processServers={processServers} />
               </div>
             )}
+            {/* 🆕 Show the uploaded affidavit (read‑only) */}
+            <AffidavitUpload
+              accountId={account.id}
+              currentAffidavit={account.affidavitProof}
+              readOnly={true}
+            />
             <ServiceAttemptsSection accountId={account.id} />
           </div>
         ),

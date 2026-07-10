@@ -1,7 +1,9 @@
-// src/app/(app)/crm/(protected)/layout.tsx
+// src/app/crm/(protected)/layout.tsx
 import { getPayload } from '@/payload'
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
+import { getActiveRole } from '@/lib/getActiveRole'
+import { RoleProvider } from '@/context/RoleContext'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
@@ -12,7 +14,6 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join('; ')
-
   if (cookieString) {
     requestHeaders.set('Cookie', cookieString)
   }
@@ -20,7 +21,6 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   const payload = await getPayload()
   const { user } = await payload.auth({ headers: requestHeaders })
 
-  // Allow users with any of these internal roles
   const allowedRoles = [
     'collector',
     'crm-manager',
@@ -29,12 +29,27 @@ export default async function ProtectedLayout({ children }: { children: React.Re
     'court-agent',
     'process-server',
     'claims-officer',
-    'client', // ← added
+    'client',
   ]
 
   if (!user || !user.roles?.some((r) => allowedRoles.includes(r))) {
     redirect('/crm/login')
   }
 
-  return <>{children}</>
+  const activeRole = await getActiveRole(user)
+  const roles = user.roles ?? []
+
+  return (
+    <>
+      {/* 🔑 Set the role cookie BEFORE any JavaScript loads – no more 403s */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.cookie = 'x-active-role=${activeRole}; path=/; SameSite=Lax'`,
+        }}
+      />
+      <RoleProvider initialRole={activeRole} roles={roles}>
+        {children}
+      </RoleProvider>
+    </>
+  )
 }
