@@ -29,3 +29,8 @@ node_modules/
 backup-*/
 accounts-direct/
 perms*.txt
+
+# Personal invoice outputs (not for version control)
+isame-invoice-*.xlsx
+isame-invoice-*.pdf
+~\$*.xlsx

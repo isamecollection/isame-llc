@@ -22,6 +22,12 @@ export default function LoginPage() {
     e.preventDefault()
     setSubmitting(true)
 
+    // Clear any stale role cookies BEFORE login
+    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'x-active-role=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'x-active-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
     const res = await fetch('/api/users/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -42,15 +48,12 @@ export default function LoginPage() {
         const roles: string[] = user.roles || []
         const defaultRole = ROLE_PRIORITY.find((r) => roles.includes(r)) || 'collector'
 
-        // Clear any old cookies
-        document.cookie =
-          'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-        document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-
-        // Set the new cookie
+        // Set fresh cookie
         document.cookie = `x-active-role=${defaultRole}; path=/; SameSite=Lax`
       }
-    } catch {}
+    } catch {
+      // Ignore — layout will fall back to highest role
+    }
 
     window.location.href = '/crm/dashboard'
   }

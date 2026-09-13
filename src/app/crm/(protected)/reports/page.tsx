@@ -53,6 +53,29 @@ export default async function ReportsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Reports</h1>
+
+      {isManagement && (
+        <div className="mb-6 bg-linear-to-r  from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="font-semibold text-blue-900 dark:text-blue-200">
+                📊 Collector Collections Report
+              </h2>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Per-collector breakdown with ISAME/client share split. PDF (one page per collector)
+                + CSV export.
+              </p>
+            </div>
+            <a
+              href="/crm/reports/collector-collections"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium whitespace-nowrap"
+            >
+              Open Report →
+            </a>
+          </div>
+        </div>
+      )}
+
       <Tabs tabs={tabs} />
     </div>
   )
