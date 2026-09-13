@@ -6,13 +6,11 @@ export async function getActiveRole(user: any): Promise<string> {
   const cookieStore = await cookies()
   const cookie = cookieStore.get('x-active-role')?.value
 
-  console.log('━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('User roles:', roles)
-  console.log('x-active-role cookie:', cookie)
-  console.log('Highest role fallback:', getHighestRole(roles))
-  console.log('━━━━━━━━━━━━━━━━━━━━━━')
+  // Validate the cookie against the user's actual roles.
+  // If it's not a role they have, fall back to their highest role.
+  if (cookie && roles.includes(cookie)) {
+    return cookie
+  }
 
-  return cookie && roles.includes(cookie)
-    ? cookie
-    : getHighestRole(roles)
+  return getHighestRole(roles)
 }

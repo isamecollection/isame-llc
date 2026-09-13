@@ -31,17 +31,6 @@ const ROLE_LABELS: Record<string, string> = {
   client: 'Client',
 }
 
-const CRM_ROLES = [
-  'admin',
-  'crm-manager',
-  'supervisor',
-  'claims-officer',
-  'court-agent',
-  'process-server',
-  'collector',
-  'client',
-]
-
 export default async function CrmRootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
   const cookieStore = await cookies()
@@ -52,38 +41,76 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
   if (!user || pathname === '/crm/login') return <>{children}</>
 
   const roles: string[] = user?.roles ?? []
-  const activeRoleCookie = cookieStore.get('x-active-role')?.value   // ← changed to x-active-role
+  const activeRoleCookie = cookieStore.get('x-active-role')?.value
 
-  const crmRoles = roles.filter((r) => CRM_ROLES.includes(r))
-  const hasMultipleRoles = crmRoles.length > 1
-  const activeRole =
-    hasMultipleRoles && activeRoleCookie && roles.includes(activeRoleCookie)
-      ? activeRoleCookie
-      : getHighestRole(roles)
+  // Validate the cookie against the user's actual roles.
+  // If it's not one of their roles, fall back to their highest role.
+  const activeRole: string =
+    activeRoleCookie && roles.includes(activeRoleCookie) ? activeRoleCookie : getHighestRole(roles)
 
-  const showManagement = canManageUsers(activeRole)
+  const hasMultipleRoles = roles.length > 1
+  const avatarUrl =
+    typeof user.avatar === 'object' && user.avatar !== null
+      ? (user.avatar as any).url || (user.avatar as any).thumbnailURL
+      : undefined
+  const initial = (user.name || user.email || 'U').charAt(0).toUpperCase()
+
+  // Nav visibility flags
+  const showManagement =
+    canManageUsers(activeRole) || canManageClients(activeRole) || canImportAccounts(activeRole)
   const showReports = canViewReports(activeRole)
+  const showAuditLogs = canViewAuditLogs(activeRole)
 
-  const avatarUrl = typeof user.avatar === 'object' && user.avatar ? (user.avatar as any).url : null
-  const initial = user.name?.charAt(0)?.toUpperCase() || '?'
+  // Redirect non-CRM roles away
+  const hasCrmRole = roles.some((r) =>
+    [
+      'admin',
+      'crm-manager',
+      'supervisor',
+      'claims-officer',
+      'court-agent',
+      'process-server',
+      'collector',
+      'client',
+    ].includes(r),
+  )
+  if (!hasCrmRole) {
+    return <div className="p-8 text-center text-gray-500">You do not have access to the CRM.</div>
+  }
 
   return (
     <>
-      <OfflineIndicator />
       <QuickLogProvider>
-        <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
-          <aside className="hidden lg:flex lg:flex-col w-64 bg-slate-800 dark:bg-slate-950 text-white p-4 pb-10 space-y-2 border-r border-slate-700">
-            <h2 className="text-xl font-bold mb-4">{ROLE_LABELS[activeRole] || 'CRM'}</h2>
-            <NavLink href="/crm/dashboard">📊 Dashboard</NavLink>
-            <NavLink href="/crm/accounts">📋 Accounts</NavLink>
-            {activeRole !== 'client' && <NavLink href="/crm/calendar">📅 Calendar</NavLink>}
-            {activeRole === 'admin' && <NavLink href="/crm/settings">⚙️ Settings</NavLink>}
+        <div className="flex min-h-screen bg-slate-100 dark:bg-gray-900">
+          {/* Desktop sidebar */}
+          <aside className="hidden lg:flex lg:flex-col w-64 bg-slate-800 dark:bg-gray-800 p-4 space-y-2 overflow-y-auto">
+            <div className="mb-4">
+              <Link href="/crm/dashboard" className="text-white text-lg font-bold">
+                Isame CRM
+              </Link>
+            </div>
+
+            <NavLink href="/crm/dashboard">🏠 Dashboard</NavLink>
+            <NavLink href="/crm/accounts">📁 Accounts</NavLink>
+            {activeRole === 'collector' && (
+              <NavLink href="/crm/collector-queue">📋 My Queue</NavLink>
+            )}
+            {activeRole === 'court-agent' && (
+              <NavLink href="/crm/court-queue">⚖️ Court Queue</NavLink>
+            )}
+            {activeRole === 'process-server' && (
+              <NavLink href="/crm/service-queue">📬 Service Queue</NavLink>
+            )}
+            {activeRole === 'claims-officer' && (
+              <NavLink href="/crm/claims-queue">📜 Claims Queue</NavLink>
+            )}
+            <NavLink href="/crm/calendar">📅 Calendar</NavLink>
             {showManagement && (
               <>
                 <NavLink href="/crm/users">👥 Users</NavLink>
                 <NavLink href="/crm/clients">🏢 Clients</NavLink>
                 <NavLink href="/crm/import">➕ Add Accounts</NavLink>
-                <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink>
+                {showAuditLogs && <NavLink href="/crm/audit-logs">🔍 Audit Logs</NavLink>}
               </>
             )}
             {activeRole === 'supervisor' && (
@@ -92,6 +119,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             {showReports && activeRole !== 'client' && (
               <NavLink href="/crm/reports">📊 Reports</NavLink>
             )}
+
             <div className="flex-1" />
             <PWAInstallButton />
             <NavLink href="/crm/profile">👤 My Profile</NavLink>
@@ -108,12 +136,14 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{user.name || 'User'}</p>
-                  <p className="text-xs text-slate-400">{activeRole}</p>
+                  <p className="text-sm font-medium text-white">{user.name || 'User'}</p>
+                  <p className="text-xs text-slate-400">{ROLE_LABELS[activeRole] ?? activeRole}</p>
                 </div>
               </div>
             </div>
           </aside>
+
+          {/* Mobile sidebar */}
           <MobileSidebar
             showManagement={showManagement}
             showSupervisor={activeRole === 'supervisor'}
@@ -122,6 +152,7 @@ export default async function CrmRootLayout({ children }: { children: React.Reac
             activeRole={activeRole}
             userName={user.name || 'Unknown'}
           />
+
           <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-20 lg:pb-0">{children}</main>
         </div>
         <QuickLogPopup />

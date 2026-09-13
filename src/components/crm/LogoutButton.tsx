@@ -8,16 +8,17 @@ export function LogoutButton() {
   const handleLogout = async () => {
     try {
       await fetch('/api/users/logout', { method: 'POST' })
-    } catch (e) {
+    } catch {
       // Continue even if API call fails
     }
 
-    // Clear both old and new active role cookies
-    document.cookie = 'activeRole=; path=/crm; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-    document.cookie = 'activeRole=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
-    document.cookie = 'x-active-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    // Clear ALL cookie variants — both old names AND both paths
+    const expired = '; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = `activeRole=; path=/crm${expired}`
+    document.cookie = `activeRole=; path=/${expired}`
+    document.cookie = `x-active-role=; path=/crm${expired}`
+    document.cookie = `x-active-role=; path=/${expired}`
 
-    // Redirect to login
     router.push('/crm/login')
     router.refresh()
   }
