@@ -20,8 +20,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     depth: 1,
   })) as any
 
-  // ... rest stays exactly the same
-
   if (!payment) {
     return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
   }
@@ -48,8 +46,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const client = account?.client as any
   const collector = payment.collectedBy as any
 
-  const balanceBefore = (account?.currentBalance || 0) + (payment.amount || 0)
-  const balanceAfter = account?.currentBalance || 0
+  // ─────────────────────────────────────────────────────────────
+  // Balance: prefer the immutable snapshot stored on the payment
+  // when the hook fired. Fall back to recomputing for legacy
+  // payments created before snapshotting existed.
+  // ─────────────────────────────────────────────────────────────
+  const paymentAmount = payment.amount ?? 0
+
+  const balanceBefore =
+    typeof payment.balanceBefore === 'number'
+      ? payment.balanceBefore
+      : (account?.currentBalance ?? 0) + paymentAmount
+
+  const balanceAfter =
+    typeof payment.balanceAfter === 'number'
+      ? payment.balanceAfter
+      : account?.currentBalance ?? 0
 
   const doc = new jsPDF()
 
@@ -141,7 +153,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   doc.setFontSize(12)
   doc.text(`$${balanceBefore.toLocaleString()}`, 160, yBox + 10, { align: 'right' })
-  doc.text(`- $${payment.amount?.toLocaleString()}`, 160, yBox + 22, { align: 'right' })
+  doc.text(`- $${paymentAmount.toLocaleString()}`, 160, yBox + 22, { align: 'right' })
   doc.text(`$${balanceAfter.toLocaleString()}`, 160, yBox + 34, { align: 'right' })
 
   // ── Payment Method & Reference ──

@@ -24,3 +24,8 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local database backups
+backup-*/
+accounts-direct/
+perms*.txt

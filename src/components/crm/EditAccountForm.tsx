@@ -94,10 +94,20 @@ export function EditAccountForm({
 
     const initial = parseFloat(initialAccount) || 0
     const paid = parseFloat(paymentsReceived) || 0
-    const amountToCollect = initial - paid
-    const fee20Percent = Math.round(amountToCollect * 0.2 * 100) / 100
-    const totalCollectable = Math.round((amountToCollect + fee20Percent) * 100) / 100
-    const currentBalance = totalCollectable
+
+    // ── Fee is 20% of the INITIAL amount (owner-confirmed) ──
+    // Fee overrides can change the percentage.
+    const customPercent = account.feeOverrides?.customCollectionFeePercent
+    const feeRate = customPercent != null ? Number(customPercent) / 100 : 0.2
+    const fee20Percent = Math.round(initial * feeRate * 100) / 100
+
+    const summonsAmount = Number(account.summonsAmount ?? 0)
+    const courtCharge = Number(account.courtCharge ?? 0)
+    const totalCollectable =
+      Math.round((initial + fee20Percent + summonsAmount + courtCharge) * 100) / 100
+
+    // ⚠️ DO NOT send currentBalance — it is a read-only, derived field.
+    // Use the "Adjust Balance" action for any manual balance changes.
 
     const body: any = {
       debtorName,
@@ -118,10 +128,9 @@ export function EditAccountForm({
       statusWithIsame: statusWithIsame || undefined,
       fee20Percent,
       totalCollectable,
-      currentBalance,
       originalBalance: initial,
-      summonsAmount: account.summonsAmount || 0,
-      courtCharge: account.courtCharge || 0,
+      summonsAmount,
+      courtCharge,
       feeOverrides: {
         customCollectionFeePercent: customCollectionFeePercent
           ? Number(customCollectionFeePercent)
@@ -153,6 +162,13 @@ export function EditAccountForm({
     }
     setSubmitting(false)
   }
+
+  // Live preview values (fee on INITIAL amount)
+  const previewInitial = parseFloat(initialAccount) || 0
+  const previewCustomPercent = account.feeOverrides?.customCollectionFeePercent
+  const previewFeeRate = previewCustomPercent != null ? Number(previewCustomPercent) / 100 : 0.2
+  const previewFee = Math.round(previewInitial * previewFeeRate * 100) / 100
+  const previewTotal = Math.round((previewInitial + previewFee) * 100) / 100
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -295,7 +311,11 @@ export function EditAccountForm({
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
             disabled={!canManageClient}
-            className={`w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 ${canManageClient ? 'bg-white dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'}`}
+            className={`w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 ${
+              canManageClient
+                ? 'bg-white dark:bg-gray-900'
+                : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed'
+            }`}
           >
             <option value="">-- no client --</option>
             {clients.map((c: any) => (
@@ -310,41 +330,29 @@ export function EditAccountForm({
             </p>
           )}
         </div>
+
         {initialAccount && (
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
             <p className="text-blue-700 dark:text-blue-300">
-              Amount to Collect:{' '}
-              <strong>
-                $
-                {(
-                  (parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)
-                ).toLocaleString()}
-              </strong>
-              &nbsp;|&nbsp; 20% Fee:{' '}
-              <strong>
-                $
-                {(
-                  Math.round(
-                    ((parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)) *
-                      0.2 *
-                      100,
-                  ) / 100
-                ).toLocaleString()}
-              </strong>
-              &nbsp;|&nbsp; Total Collectable:{' '}
-              <strong>
-                $
-                {(
-                  Math.round(
-                    ((parseFloat(initialAccount) || 0) - (parseFloat(paymentsReceived) || 0)) *
-                      1.2 *
-                      100,
-                  ) / 100
-                ).toLocaleString()}
-              </strong>
+              Initial Amount: <strong>${previewInitial.toLocaleString()}</strong>
+              &nbsp;|&nbsp; Fee ({(previewFeeRate * 100).toFixed(0)}% of initial):{' '}
+              <strong>${previewFee.toLocaleString()}</strong>
+              &nbsp;|&nbsp; Total Collectable: <strong>${previewTotal.toLocaleString()}</strong>
             </p>
           </div>
         )}
+
+        {/* Read-only current balance display */}
+        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm">
+          <p className="text-amber-800 dark:text-amber-200">
+            Current Balance: <strong>${(account.currentBalance ?? 0).toLocaleString()}</strong>
+            &nbsp;—&nbsp;
+            <span className="text-xs">
+              Read-only. Use the <strong>Adjust Balance</strong> button at the top of this page to
+              make manual changes.
+            </span>
+          </p>
+        </div>
       </div>
 
       {/* Fee Overrides */}

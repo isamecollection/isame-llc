@@ -27,7 +27,14 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(payments)
 }
 
-// POST - Create payment with balance update & receipt
+// POST - Create payment.
+// NOTE: This route no longer touches account balance directly.
+// The afterChangePayment hook owns ALL balance math:
+//   - currentBalance decrement (atomic $inc)
+//   - paymentsReceived increment
+//   - balanceBefore/balanceAfter snapshot on the payment record
+//   - status flip to 'paid' when balance hits 0
+//   - event log entry
 export async function POST(request: NextRequest) {
   // Authenticate & Authorize
   const payload = await getPayload()
@@ -43,9 +50,7 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission) {
     return NextResponse.json(
-      {
-        error: 'Forbidden - No role with payment permission',
-      },
+      { error: 'Forbidden - No role with payment permission' },
       { status: 403 },
     )
   }
@@ -73,9 +78,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Read pre-payment balance for the response payload only.
+    // The hook will do the authoritative update.
     const accountDoc = await payload.findByID({ collection: 'accounts', id: account })
     const balanceBefore = accountDoc.currentBalance || 0
 
+    // Create the payment — the afterChangePayment hook handles the rest.
     const payment = await payload.create({
       collection: 'payments',
       data: {
@@ -96,19 +104,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const newPaymentsReceived = (accountDoc.paymentsReceived || 0) + parseFloat(amount)
-    const balanceAfter = Math.max(0, balanceBefore - parseFloat(amount))
-    const newStatus = balanceAfter <= 0 ? 'settled' : accountDoc.status
-
-    await payload.update({
-      collection: 'accounts',
-      id: account,
-      data: {
-        paymentsReceived: newPaymentsReceived,
-        currentBalance: balanceAfter,
-        status: newStatus,
-      },
-    })
+    // Re-fetch the account to pick up the hook's atomic update.
+    const updatedAccount = await payload.findByID({ collection: 'accounts', id: account })
 
     const receiptUrl = `/api/payments/receipt/${payment.id}`
 
@@ -117,10 +114,10 @@ export async function POST(request: NextRequest) {
       paymentId: payment.id,
       receiptUrl,
       balanceBefore,
-      balanceAfter,
+      balanceAfter: updatedAccount.currentBalance,
       paymentAmount: parseFloat(amount),
-      newBalance: balanceAfter,
-      newPaymentsReceived,
+      newBalance: updatedAccount.currentBalance,
+      newPaymentsReceived: updatedAccount.paymentsReceived,
     })
   } catch (error: any) {
     console.error('Payment error:', error)

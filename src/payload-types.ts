@@ -73,6 +73,7 @@ export interface Config {
     categories: Category;
     users: User;
     accounts: Account;
+    'balance-adjustments': BalanceAdjustment;
     agreements: Agreement;
     payments: Payment;
     'scheduled-payments': ScheduledPayment;
@@ -107,6 +108,7 @@ export interface Config {
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     accounts: AccountsSelect<false> | AccountsSelect<true>;
+    'balance-adjustments': BalanceAdjustmentsSelect<false> | BalanceAdjustmentsSelect<true>;
     agreements: AgreementsSelect<false> | AgreementsSelect<true>;
     payments: PaymentsSelect<false> | PaymentsSelect<true>;
     'scheduled-payments': ScheduledPaymentsSelect<false> | ScheduledPaymentsSelect<true>;
@@ -2028,6 +2030,9 @@ export interface Account {
   debtorName?: string | null;
   ssn?: string | null;
   originalBalance?: number | null;
+  /**
+   * Computed from components − payments. Use "Adjust Balance" to change manually.
+   */
   currentBalance?: number | null;
   status?: ('active' | 'settled' | 'paid' | 'bankruptcy' | 'legal' | 'closed') | null;
   assignedCollector?: (string | null) | User;
@@ -2102,6 +2107,35 @@ export interface Account {
   createdAt: string;
 }
 /**
+ * Audit log of manual balance adjustments
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "balance-adjustments".
+ */
+export interface BalanceAdjustment {
+  id: string;
+  account: string | Account;
+  /**
+   * Balance before the adjustment
+   */
+  previousBalance: number;
+  /**
+   * Balance after the adjustment
+   */
+  newBalance: number;
+  /**
+   * Change applied (newBalance − previousBalance)
+   */
+  delta: number;
+  /**
+   * Why is this adjustment being made? Include ticket/ref numbers.
+   */
+  reason: string;
+  adjustedBy: string | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "agreements".
  */
@@ -2133,6 +2167,14 @@ export interface Payment {
   id: string;
   account: string | Account;
   amount: number;
+  /**
+   * Account balance before this payment was applied
+   */
+  balanceBefore?: number | null;
+  /**
+   * Account balance after this payment was applied
+   */
+  balanceAfter?: number | null;
   method?: ('cash' | 'check' | 'bank_transfer' | 'credit_card' | 'debit_card' | 'online' | 'other') | null;
   status?: ('pending' | 'completed' | 'failed' | 'refunded') | null;
   /**
@@ -2682,6 +2724,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'accounts';
         value: string | Account;
+      } | null)
+    | ({
+        relationTo: 'balance-adjustments';
+        value: string | BalanceAdjustment;
       } | null)
     | ({
         relationTo: 'agreements';
@@ -3815,6 +3861,20 @@ export interface AccountsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "balance-adjustments_select".
+ */
+export interface BalanceAdjustmentsSelect<T extends boolean = true> {
+  account?: T;
+  previousBalance?: T;
+  newBalance?: T;
+  delta?: T;
+  reason?: T;
+  adjustedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "agreements_select".
  */
 export interface AgreementsSelect<T extends boolean = true> {
@@ -3843,6 +3903,8 @@ export interface AgreementsSelect<T extends boolean = true> {
 export interface PaymentsSelect<T extends boolean = true> {
   account?: T;
   amount?: T;
+  balanceBefore?: T;
+  balanceAfter?: T;
   method?: T;
   status?: T;
   transactionId?: T;

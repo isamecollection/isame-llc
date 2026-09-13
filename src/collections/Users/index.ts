@@ -1,18 +1,35 @@
 import type { CollectionConfig } from 'payload'
-import { authenticated } from '../../access/authenticated'
 
 export const Users: CollectionConfig = {
   slug: 'users',
   access: {
-    admin: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
-    create: authenticated,
-    read: authenticated,
-    update: ({ req: { user } }) => {
-      if (user?.roles?.includes('admin')) return true
-      return { id: { equals: user?.id } }
+   admin: ({ req: { user } }) => {
+  if (!user) return false
+  return user.roles?.includes('admin') ?? false
+},
+    create: ({ req: { user } }) => {
+  if (!user) return false
+  const roles: string[] = user.roles || []
+  return roles.includes('admin') || roles.includes('crm-manager')
+},
+    read: ({ req: { user } }) => {
+      if (!user) return false
+      const roles: string[] = user.roles || []
+      if (roles.includes('admin') || roles.includes('crm-manager')) return true
+      return { id: { equals: user.id } }
     },
-    delete: ({ req: { user } }) =>
-      user?.roles?.some((r) => ['admin', 'crm-manager'].includes(r)) ?? false,
+    update: ({ req: { user } }) => {
+      if (!user) return false
+      const roles: string[] = user.roles || []
+      if (roles.includes('admin') || roles.includes('crm-manager')) return true
+      return { id: { equals: user.id } }
+    },
+    delete: ({ req: { user } }) => {
+      if (!user) return false
+      const roles: string[] = user.roles || []
+      if (roles.includes('admin')) return true
+      return roles.includes('crm-manager')
+    },
   },
   admin: {
     defaultColumns: ['name', 'email', 'roles'],
@@ -54,10 +71,16 @@ export const Users: CollectionConfig = {
       ],
       defaultValue: [],
       access: {
-        update: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
-        create: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        update: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
+        create: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
       },
     },
     {
@@ -65,10 +88,16 @@ export const Users: CollectionConfig = {
       type: 'relationship',
       relationTo: 'users',
       access: {
-        update: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
-        create: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        update: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
+        create: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
       },
     },
     {
@@ -80,10 +109,16 @@ export const Users: CollectionConfig = {
         description: 'Link this user to a specific client (for client portal access)',
       },
       access: {
-        update: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
-        create: ({ req: { user } }) =>
-          (user?.roles?.includes('admin') || user?.roles?.includes('crm-manager')) ?? false,
+        update: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
+        create: ({ req: { user } }) => {
+          if (!user) return false
+          const roles: string[] = user.roles || []
+          return roles.includes('admin') || roles.includes('crm-manager')
+        },
       },
     },
   ],

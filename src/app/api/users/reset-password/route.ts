@@ -4,9 +4,17 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const payload = await getPayload()
 
-  // 1. Authenticate supervisor
   const { user } = await payload.auth({ headers: request.headers })
-  if (!user || !user.roles?.includes('supervisor')) {
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const roles: string[] = user.roles || []
+  const isAdmin = roles.includes('admin')
+  const isCrmManager = roles.includes('crm-manager')
+  const isSupervisor = roles.includes('supervisor')
+
+  if (!isAdmin && !isCrmManager && !isSupervisor) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -15,23 +23,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing userId or newPassword' }, { status: 400 })
   }
 
-  // 2. Fetch target user
   let targetUser
   try {
     targetUser = await payload.findByID({ collection: 'users', id: userId })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  // 3. Verify supervisor relationship (handle both string ID and populated object)
-  const supervisorId =
-    typeof targetUser.supervisor === 'string' ? targetUser.supervisor : targetUser.supervisor?.id
+  // Admins + CRM managers: reset anyone's password
+  // Supervisors: only their team (users whose `supervisor` points to them)
+  if (!isAdmin && !isCrmManager) {
+    const supervisorId =
+      typeof targetUser.supervisor === 'string'
+        ? targetUser.supervisor
+        : targetUser.supervisor?.id
 
-  if (supervisorId !== user.id) {
-    return NextResponse.json({ error: 'User not in your team' }, { status: 403 })
+    if (supervisorId !== user.id) {
+      return NextResponse.json({ error: 'User not in your team' }, { status: 403 })
+    }
   }
 
-  // 4. Reset password (Payload hashes it automatically)
   await payload.update({
     collection: 'users',
     id: userId,

@@ -51,26 +51,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Account not found on payment' }, { status: 400 })
     }
 
-    const account = await payload.findByID({
+    // Capture pre-reversal balance for the response payload only.
+    const accountBefore = await payload.findByID({
       collection: 'accounts',
       id: accountId,
     })
-
-    const newPaymentsReceived = Math.max(0, (account.paymentsReceived || 0) - payment.amount)
-    const newBalance = (account.currentBalance || 0) + payment.amount
-
-    await payload.update({
-      collection: 'accounts',
-      id: accountId,
-      data: {
-        paymentsReceived: newPaymentsReceived,
-        currentBalance: newBalance,
-      },
-    })
+    const previousBalance = accountBefore.currentBalance || 0
 
     const voidNote = `REFUNDED: ${reason} (Voided by ${user.email} on ${new Date().toISOString()})`
     const updatedNotes = payment.notes ? `${payment.notes}\n${voidNote}` : voidNote
 
+    // Update the payment status → afterChangePayment hook handles ALL
+    // balance reversal atomically (currentBalance, paymentsReceived,
+    // status flip back to 'active' if it was 'paid', event log).
     await payload.update({
       collection: 'payments',
       id,
@@ -80,14 +73,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
     })
 
+    // Re-fetch the account to pick up the hook's atomic update.
+    const accountAfter = await payload.findByID({
+      collection: 'accounts',
+      id: accountId,
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Payment voided successfully',
       paymentId: id,
       reversedAmount: payment.amount,
-      previousBalance: account.currentBalance,
-      newBalance: newBalance,
-      newPaymentsReceived,
+      previousBalance,
+      newBalance: accountAfter.currentBalance,
+      newPaymentsReceived: accountAfter.paymentsReceived,
     })
   } catch (error: any) {
     console.error('Error voiding payment:', error)

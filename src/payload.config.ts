@@ -17,6 +17,7 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { ServiceAttempts } from './collections/ServiceAttempts'
 import { AuditLog } from './collections/AuditLog'
 import { CRMSettings } from './collections/CRMSettings'
+
 import {
   TextColorFeature,
   TextSizeFeature,
@@ -34,7 +35,7 @@ import { Users } from './collections/Users'
 import { Accounts } from './collections/Accounts'
 import { Agreements } from './collections/Agreements'
 import { Payments } from './collections/Payments'
-
+import { BalanceAdjustments } from './collections/BalanceAdjustments'
 import { Events } from './collections/Events'
 import { Notes } from './collections/Notes'
 import { CallAttempts } from './collections/CallAttempts'
@@ -167,6 +168,7 @@ export default buildConfig({
     Categories,
     Users,
     Accounts,
+    BalanceAdjustments,
     Agreements,
     Payments,
     ScheduledPayments,

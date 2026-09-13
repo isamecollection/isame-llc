@@ -8,46 +8,91 @@ export const afterChangePayment: CollectionAfterChangeHook = async ({
 }) => {
   const { payload } = req
 
-  if (operation === 'update' && doc.status === 'completed' && previousDoc?.status !== 'completed') {
-    // Fetch the linked account
-    const account = await payload.findByID({
-      collection: 'accounts',
-      id: typeof doc.account === 'string' ? doc.account : doc.account?.id,
-    })
+  if (req.context?.__paymentHookSkip) return doc
 
-    if (!account) return doc
+  const wasCompleted = previousDoc?.status === 'completed'
+  const isCompleted = doc.status === 'completed'
 
-    // Use 0 if currentBalance is null/undefined
-    const currentBalance = account.currentBalance ?? 0
-    const paymentAmount = doc.amount ?? 0
+  const shouldApply =
+    (operation === 'create' && isCompleted) ||
+    (operation === 'update' && isCompleted && !wasCompleted)
 
-    // Update account balance
+  const shouldReverse = operation === 'update' && !isCompleted && wasCompleted
+
+  if (!shouldApply && !shouldReverse) return doc
+
+  const accountId = typeof doc.account === 'string' ? doc.account : doc.account?.id
+  if (!accountId) return doc
+
+  const account = await payload.findByID({ collection: 'accounts', id: accountId })
+  if (!account) return doc
+
+  const paymentAmount = doc.amount ?? 0
+  const delta = shouldApply ? -paymentAmount : paymentAmount
+
+  let balanceBefore = account.currentBalance ?? 0
+  let balanceAfter = balanceBefore + delta
+
+  try {
+    const result = await (payload.db as any).collections.accounts.findOneAndUpdate(
+      { _id: account.id },
+      { $inc: { currentBalance: delta } },
+      { returnDocument: 'after' },
+    )
+    const updated = result?.value ?? result
+    if (updated?.currentBalance !== undefined) {
+      balanceAfter = Math.round(updated.currentBalance * 100) / 100
+      balanceBefore = Math.round((balanceAfter - delta) * 100) / 100
+    }
+  } catch {
+    const newBalance = Math.max(0, Math.round((balanceBefore + delta) * 100) / 100)
     await payload.update({
       collection: 'accounts',
       id: account.id,
-      data: {
-        currentBalance: currentBalance - paymentAmount,
-      },
+      data: { currentBalance: newBalance },
+      context: { __paymentHook: true },
     })
+    balanceAfter = newBalance
+  }
 
-    // Log the payment event
-    await payload.create({
-      collection: 'events',
-      data: {
-        type: 'payment.received',
-        account: account.id,
-        data: { paymentId: doc.id, amount: paymentAmount },
-      },
+  // ⚠️ DO NOT modify paymentsReceived here.
+  // It represents "amounts paid to the lender BEFORE ISAME took over"
+  // and is a static input to the collectable calculation.
+
+  try {
+    await payload.update({
+      collection: 'payments',
+      id: doc.id,
+      data: { balanceBefore, balanceAfter },
+      context: { __paymentHookSkip: true },
     })
+  } catch {}
 
-    // If balance reaches zero, mark account as paid
-    if (currentBalance - paymentAmount <= 0) {
-      await payload.update({
-        collection: 'accounts',
-        id: account.id,
-        data: { status: 'paid' },
-      })
-    }
+  await payload.create({
+    collection: 'events',
+    data: {
+      type: shouldApply ? 'payment.received' : 'payment.reversed',
+      account: account.id,
+      data: { paymentId: doc.id, amount: paymentAmount, balanceBefore, balanceAfter },
+    },
+  })
+
+  if (shouldApply && balanceAfter <= 0) {
+    await payload.update({
+      collection: 'accounts',
+      where: {
+        and: [{ id: { equals: account.id } }, { status: { not_equals: 'paid' } }],
+      },
+      data: { status: 'paid' },
+    })
+  } else if (shouldReverse && balanceAfter > 0) {
+    await payload.update({
+      collection: 'accounts',
+      where: {
+        and: [{ id: { equals: account.id } }, { status: { equals: 'paid' } }],
+      },
+      data: { status: 'active' },
+    })
   }
 
   return doc

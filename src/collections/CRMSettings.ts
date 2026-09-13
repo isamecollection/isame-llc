@@ -7,11 +7,12 @@ export const CRMSettings: CollectionConfig = {
     group: 'CRM',
   },
   access: {
-    read: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
-    update: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
-    create: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
-    delete: () => false,
-  },
+  read: ({ req: { user } }) => Boolean(user),
+  update: ({ req: { user } }) =>
+    user?.roles?.some((r) => ['admin', 'crm-manager'].includes(r)) ?? false,
+  create: ({ req: { user } }) => user?.roles?.includes('admin') ?? false,
+  delete: () => false,
+},
   fields: [
     {
       name: 'fees',

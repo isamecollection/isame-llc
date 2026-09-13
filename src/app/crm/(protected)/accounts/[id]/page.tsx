@@ -26,6 +26,7 @@ import { TriggerCourtCharges } from '@/components/crm/TriggerCourtCharges'
 import { headers, cookies } from 'next/headers'
 import { getActiveRole } from '@/lib/getActiveRole'
 import { logAudit } from '@/lib/auditLogger'
+import { AdjustBalanceForm } from '@/components/crm/AdjustBalanceForm'
 import {
   isLimitedView,
   canManageLegal,
@@ -68,6 +69,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const fullAccess = !limitedView && !clientView
   const showCourtCharges = canApplyCourtCharges(activeRole)
   const showProcessServerAssign = canAssignProcessServer(activeRole)
+
+  // Who can adjust balance?
+  const canAdjustBalance =
+    activeRole === 'admin' || activeRole === 'crm-manager' || activeRole === 'supervisor'
 
   let processServers: any[] = []
   if (showProcessServerAssign) {
@@ -114,6 +119,24 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const clientsRes = await payload.find({ collection: 'clients', sort: 'name', limit: 100 })
   const clients = clientsRes.docs
 
+  // ── Recent Balance Adjustments (audit log) ──
+  let recentAdjustments: any[] = []
+  if (canAdjustBalance) {
+    try {
+      const adjRes = await payload.find({
+        collection: 'balance-adjustments',
+        where: { account: { equals: account.id } },
+        sort: '-createdAt',
+        limit: 5,
+        depth: 1,
+      })
+      recentAdjustments = adjRes.docs
+    } catch {
+      // Collection may not exist yet on fresh deploy
+      recentAdjustments = []
+    }
+  }
+
   const tabs: { label: string; content: React.ReactNode }[] = []
 
   if (clientView) {
@@ -153,7 +176,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       { label: 'Documents', content: <AccountDocumentsSection accountId={account.id} /> },
     )
 
-    // 📜 Service tab – now includes claims-officer, court-agent, admin
     if (
       activeRole === 'process-server' ||
       activeRole === 'court-agent' ||
@@ -164,11 +186,9 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         label: 'Service',
         content: (
           <div className="space-y-6">
-            {/* Process server gets the upload form */}
             {activeRole === 'process-server' && (
               <AffidavitUpload accountId={account.id} currentAffidavit={account.affidavitProof} />
             )}
-            {/* Court agent, claims officer, and admin get read‑only view */}
             {(activeRole === 'court-agent' ||
               activeRole === 'claims-officer' ||
               activeRole === 'admin') && (
@@ -245,7 +265,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
                 <AssignProcessServer accountId={account.id} processServers={processServers} />
               </div>
             )}
-            {/* 🆕 Show the uploaded affidavit (read‑only) */}
             <AffidavitUpload
               accountId={account.id}
               currentAffidavit={account.affidavitProof}
@@ -298,6 +317,56 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         userRole={activeRole || undefined}
         clientView={clientView}
       />
+
+      {/* ── Balance Adjustment Panel (management only) ── */}
+      {canAdjustBalance && !clientView && (
+        <div className="mt-4 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-4">
+          <div className="flex justify-between items-start gap-4 flex-wrap">
+            <div>
+              <h3 className="font-semibold text-amber-900 dark:text-amber-200">
+                Balance Integrity
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Current balance is a derived field. Manual changes require a reason and are fully
+                audited.
+              </p>
+            </div>
+            <AdjustBalanceForm
+              accountId={account.id}
+              currentBalance={account.currentBalance ?? 0}
+            />
+          </div>
+
+          {recentAdjustments.length > 0 && (
+            <div className="border-t border-amber-200 dark:border-amber-800 pt-3">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                Recent adjustments{' '}
+              </p>
+              <ul className="space-y-2 text-xs">
+                {recentAdjustments.map((adj: any) => (
+                  <li key={adj.id} className="flex flex-col gap-0.5">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      <strong>
+                        ${adj.previousBalance?.toLocaleString()} → $
+                        {adj.newBalance?.toLocaleString()}
+                      </strong>{' '}
+                      ({adj.delta >= 0 ? '+' : ''}${adj.delta?.toLocaleString()})
+                      {adj.adjustedBy?.name && <> — by {adj.adjustedBy.name}</>}
+                    </span>
+                    <span className="text-gray-500 italic">{adj.reason}</span>
+                    <span className="text-gray-400">
+                      {new Date(adj.createdAt).toLocaleString('en-US', {
+                        timeZone: 'America/Belize',
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <Tabs tabs={tabs} />
       {fullAccess && (
         <div className="mt-4">

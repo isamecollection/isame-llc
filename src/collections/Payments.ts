@@ -39,6 +39,16 @@ export const Payments: CollectionConfig = {
       required: true,
     },
     {
+  name: 'balanceBefore',
+  type: 'number',
+  admin: { readOnly: true, description: 'Account balance before this payment was applied' },
+},
+{
+  name: 'balanceAfter',
+  type: 'number',
+  admin: { readOnly: true, description: 'Account balance after this payment was applied' },
+},
+    {
       name: 'method',
       type: 'select',
       options: ['cash', 'check', 'bank_transfer', 'credit_card', 'debit_card', 'online', 'other'],
@@ -47,6 +57,7 @@ export const Payments: CollectionConfig = {
       name: 'status',
       type: 'select',
       options: ['pending', 'completed', 'failed', 'refunded'],
+        defaultValue: 'completed',   // ← ADD
     },
     {
       name: 'transactionId',
